@@ -11,6 +11,8 @@ const char *DataAcquisition::kTorqueChannel = "dev2/ai4:5";
 const char *DataAcquisition::kPullSensorChannel = "dev2/ai0:3";
 const char *DataAcquisition::kGripChannel = "dev2/ai6";
 const char *DataAcquisition::kSixDimensionForceChannel = "dev3/ai0:5";
+const char *DataAcquisition::kShoulderTensionChannel;
+const char *DataAcquisition::kElbowTensionChannel;
 const double DataAcquisition::kRawToReal = 2.0;
 
 Eigen::Matrix<double, 6, 6> DataAcquisition::kTransformMatrix = MatrixXd::Zero(6, 6);
@@ -86,20 +88,40 @@ void DataAcquisition::AcquisiteShoulderTensionData() {
 	TaskHandle taskHandle = 0;
 	int32 read = 0;
 	int status = 0;
-	double pull_sensor_data[4]{ 0 };
-	status = DAQmxCreateTask("PullDataTask", &taskHandle);
-	status = DAQmxCreateAIVoltageChan(taskHandle, kPullSensorChannel, "PullDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
+	double shoulder_tension_data[4]{ 0 };
+	status = DAQmxCreateTask("ShoulderTensionTask", &taskHandle);
+	status = DAQmxCreateAIVoltageChan(taskHandle, kPullSensorChannel, "ShoulderTensionChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
 	status = DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
 	status = DAQmxStartTask(taskHandle);
-	status = DAQmxReadAnalogF64(taskHandle, 1, 0.2, DAQmx_Val_GroupByScanNumber, pull_sensor_data, 4, &read, NULL);
+	status = DAQmxReadAnalogF64(taskHandle, 1, 0.2, DAQmx_Val_GroupByScanNumber, shoulder_tension_data, 4, &read, NULL);
 	status = DAQmxStopTask(taskHandle);
 	status = DAQmxClearTask(taskHandle);
 
 	/*这里需要根据实际连线确定正确的顺序*/
-	shoulder_raw_forward_pull_ = pull_sensor_data[0];
-	shoulder_raw_backward_pull_ = pull_sensor_data[1];
-	elbow_raw_forward_pull_ = pull_sensor_data[2];
-	elbow_raw_backward_pull_ = pull_sensor_data[3];
+	shoulder_raw_forward_pull_ = shoulder_tension_data[0];
+	shoulder_raw_backward_pull_ = shoulder_tension_data[1];
+	elbow_raw_forward_pull_ = shoulder_tension_data[2];
+	elbow_raw_backward_pull_ = shoulder_tension_data[3];
+}
+
+void DataAcquisition::AcquisiteElbowTensionData() {
+	TaskHandle taskHandle = 0;
+	int32 read = 0;
+	int status = 0;
+	double elbow_tension_data[4]{ 0 };
+	status = DAQmxCreateTask("ElbowTensionTask", &taskHandle);
+	status = DAQmxCreateAIVoltageChan(taskHandle, kPullSensorChannel, "ElbowTensionChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
+	status = DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
+	status = DAQmxStartTask(taskHandle);
+	status = DAQmxReadAnalogF64(taskHandle, 1, 0.2, DAQmx_Val_GroupByScanNumber, elbow_tension_data, 4, &read, NULL);
+	status = DAQmxStopTask(taskHandle);
+	status = DAQmxClearTask(taskHandle);
+
+	/*这里需要根据实际连线确定正确的顺序*/
+	shoulder_raw_forward_pull_ = elbow_tension_data[0];
+	shoulder_raw_backward_pull_ = elbow_tension_data[1];
+	elbow_raw_forward_pull_ = elbow_tension_data[2];
+	elbow_raw_backward_pull_ = elbow_tension_data[3];
 }
 
 void DataAcquisition::AcquisiteSixDemensionData(double output_buf[6]) {

@@ -13,7 +13,9 @@ public:
 	void AcquisiteTorqueData();
 	void AcquisitePullSensorData();
 	void AcquisiteSixDemensionData(double output_buf[6]);
+	//肩部传感器数据的采集函数
 	void AcquisiteShoulderTensionData();
+	//肘部传感器数据的采集函数
 	void AcquisiteElbowTensionData();
 	void AcquisiteGripData(double grip[1]);
 	double ShoulderTorque();
@@ -44,6 +46,8 @@ private:
 	static const char *kPullSensorChannel;
 	static const char *kSixDimensionForceChannel;
 	static const char *kGripChannel;
+	static const char *kShoulderTensionChannel;
+	static const char *kElbowTensionChannel;
 	static const double kRawToReal;
 
 	static Eigen::Matrix<double, 6, 6>  kTransformMatrix;
