@@ -185,13 +185,15 @@ void  damping_control(const MatrixBase<DerivedA>& Fh, MatrixBase<DerivedB>& U,Ma
 	Ad426(exp_m[2],A[2]);
 	Ad426(exp_m[3],A[3]);
 	
+	//这里对应MR中p202，因为一开始就是在体坐标系中表示的，
+    //所以这里bb本就指的是Bi
 	Jb.block(0, 0, 6, 1) = A[0] * bb[0];
 	Jb.block(0, 1, 6, 1) = A[1] * bb[1];
 	Jb.block(0, 2, 6, 1) = A[2] * bb[2];
 	Jb.block(0, 3, 6, 1) = A[3] * bb[3];
 	Jb.block(0, 4, 6, 1) = bb[4];
 	diag << a, a, a, b, b, b;//度量矩阵
-	Co_tem << 20, 20, 20, 1, 1, 1;//
+	Co_tem << 20, 20, 20, 1, 1, 1;//六维力的比例系数
 	G=diag.asDiagonal();
 	Co=Co_tem.asDiagonal();
 
