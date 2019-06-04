@@ -37,6 +37,8 @@ public:
 	bool is_exit_thread_;
 	bool is_moving_;
 	double six_dimension_offset_[6];
+	double shoulder_offset[4];
+	double elbow_offset[4];
 	double cycle_time_in_second_;
 
 private:

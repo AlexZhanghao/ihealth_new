@@ -137,17 +137,36 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 	UINT start, end;
 	start = GetTickCount();
 	// 求六维力传感器的偏置
-	double sum[6]{ 0.0 };
-	double buf[6]{ 0.0 };
-	for (int i = 0;i < 10;++i) {
-		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
-		for (int j = 0;j < 6;++j) {
-			sum[j] += buf[j];
+	//double sum[6]{ 0.0 };
+	//double buf[6]{ 0.0 };
+	//for (int i = 0;i < 10;++i) {
+	//	DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
+	//	for (int j = 0;j < 6;++j) {
+	//		sum[j] += buf[j];
+	//	}
+	//}
+	//for (int i = 0;i < 6;++i) {
+	//	active->six_dimension_offset_[i] = sum[i] / 10;
+	//}
+
+	//求压力传感器的偏置
+	double shoulder_sum[4]{ 0.0 };
+	double elbow_sum[4]{ 0.0 };
+	double shoulder_buf[4]{ 0.0 };
+	double elbow_buf[4]{ 0.0 };
+	for (int i = 0; i < 10; ++i) {
+		DataAcquisition::GetInstance().AcquisiteShoulderTensionData(shoulder_buf);
+		DataAcquisition::GetInstance().AcquisiteElbowTensionData(elbow_buf);
+		for (int j = 1; j < 4; ++j) {
+			shoulder_sum[i] += shoulder_buf[i];
+			elbow_sum[i] += elbow_buf[i];
 		}
 	}
-	for (int i = 0;i < 6;++i) {
-		active->six_dimension_offset_[i] = sum[i] / 10;
+	for (int i = 0; i < 6; ++i) {
+		active->shoulder_offset[i] = shoulder_sum[i] / 10;
+		active->elbow_offset[i] = elbow_sum[i] / 10;
 	}
+
 	DataAcquisition::GetInstance().StopTask();
 	DataAcquisition::GetInstance().StartTask();
 
@@ -207,14 +226,36 @@ void ActiveControl::Step() {
 	double bias[6] = { 0 };
 	double sub_bias[6] = { 0 };
 
-	DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
+	double shoulder_data[4] = { 0 };
+	double elbow_data[4] = { 0 };
+	double shouble_suboffset[4] = { 0 };
+	double elbow_suboffset[4] = { 0 };
+	double tension_data[8] = { 0 };
+
+	//DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
+	DataAcquisition::GetInstance().AcquisiteShoulderTensionData(shoulder_data);
+	DataAcquisition::GetInstance().AcquisiteElbowTensionData(elbow_data);
+
+	//减偏置
+	for (int i = 0; i < 4; ++i) {
+		shouble_suboffset[i] = shoulder_data[i] - shoulder_offset[i];
+		elbow_suboffset[i] = elbow_data[i] - elbow_offset[i];
+	}
+
+	//把力矩集中在一起
+	for (int i = 0; i < 4; ++i) {
+		tension_data[i] = shouble_suboffset[i];
+	}
+	for (int i = 0; i < 4; ++i) {
+		tension_data[i + 4] = elbow_suboffset[i];
+	}
 
 	// 求减去偏置之后的六维力，这里对z轴的力和力矩做了一个反向
-	for (int i = 0; i < 6; ++i) {
-		sub_bias[i] = readings[i] - six_dimension_offset_[i];
-	}
-	sub_bias[2] = -sub_bias[2];
-	sub_bias[5] = -sub_bias[5];
+	//for (int i = 0; i < 6; ++i) {
+	//	sub_bias[i] = readings[i] - six_dimension_offset_[i];
+	//}
+	//sub_bias[2] = -sub_bias[2];
+	//sub_bias[5] = -sub_bias[5];
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
@@ -248,8 +289,7 @@ void ActiveControl::Raw2Trans(double RAWData[6], double DistData[6]) {
 	A.block(0, 0, 3, 3) = rotate_matrix_;
 	A.block(0, 3, 3, 1) = ForcePositionHat * rotate_matrix_;
 	A.block(3, 3, 3, 3) = rotate_matrix_;
-
-
+	
 
 
 	//之前是fxfyfzMxMyMz,现在变成MxMyMzfxfyfz

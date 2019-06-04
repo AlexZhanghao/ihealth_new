@@ -14,9 +14,9 @@ public:
 	void AcquisitePullSensorData();
 	void AcquisiteSixDemensionData(double output_buf[6]);
 	//肩部传感器数据的采集函数
-	void AcquisiteShoulderTensionData();
+	void AcquisiteShoulderTensionData(double shoulder_tension_output[4]);
 	//肘部传感器数据的采集函数
-	void AcquisiteElbowTensionData();
+	void AcquisiteElbowTensionData(double elbow_tension_output[4]);
 	void AcquisiteGripData(double grip[1]);
 	double ShoulderTorque();
 	double ElbowTorque();

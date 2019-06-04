@@ -84,7 +84,7 @@ void DataAcquisition::AcquisitePullSensorData() {
 	elbow_raw_backward_pull_ = pull_sensor_data[3];
 }
 
-void DataAcquisition::AcquisiteShoulderTensionData() {
+void DataAcquisition::AcquisiteShoulderTensionData(double shoulder_tension_output[4]) {
 	TaskHandle taskHandle = 0;
 	int32 read = 0;
 	int status = 0;
@@ -97,14 +97,13 @@ void DataAcquisition::AcquisiteShoulderTensionData() {
 	status = DAQmxStopTask(taskHandle);
 	status = DAQmxClearTask(taskHandle);
 
-	/*这里需要根据实际连线确定正确的顺序*/
-	shoulder_raw_forward_pull_ = shoulder_tension_data[0];
-	shoulder_raw_backward_pull_ = shoulder_tension_data[1];
-	elbow_raw_forward_pull_ = shoulder_tension_data[2];
-	elbow_raw_backward_pull_ = shoulder_tension_data[3];
+	for (int i = 0; i < 4; ++i) {
+		shoulder_tension_output[i] = shoulder_tension_data[i];
+	}
+
 }
 
-void DataAcquisition::AcquisiteElbowTensionData() {
+void DataAcquisition::AcquisiteElbowTensionData(double elbow_tension_output[4]) {
 	TaskHandle taskHandle = 0;
 	int32 read = 0;
 	int status = 0;
@@ -117,11 +116,10 @@ void DataAcquisition::AcquisiteElbowTensionData() {
 	status = DAQmxStopTask(taskHandle);
 	status = DAQmxClearTask(taskHandle);
 
-	/*这里需要根据实际连线确定正确的顺序*/
-	shoulder_raw_forward_pull_ = elbow_tension_data[0];
-	shoulder_raw_backward_pull_ = elbow_tension_data[1];
-	elbow_raw_forward_pull_ = elbow_tension_data[2];
-	elbow_raw_backward_pull_ = elbow_tension_data[3];
+	for (int i = 0; i < 4; ++i) {
+		elbow_tension_output[i] = elbow_tension_data[i];
+	}
+
 }
 
 void DataAcquisition::AcquisiteSixDemensionData(double output_buf[6]) {
