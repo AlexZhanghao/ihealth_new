@@ -129,6 +129,12 @@ void fwd_geo_coup(const MatrixBase<DerivedA>& U, MatrixBase<DerivedB>& theta) {
 	//电机的角度就是初始角度加上转换后的角度
 	theta=thetab+meta*U;
 }
+
+template<typename DerivedA, typename DerivedB>
+void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<DerivedB>& elbowforcevector,double tau[5]) {
+
+}
+
 template<typename DerivedA, typename DerivedB,typename DerivedC>
 void  damping_control(const MatrixBase<DerivedA>& Fh, MatrixBase<DerivedB>& U,MatrixBase<DerivedC>& Ub,double Fc,double a,double b)
 {

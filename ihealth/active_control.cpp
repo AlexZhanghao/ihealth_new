@@ -228,8 +228,10 @@ void ActiveControl::Step() {
 
 	double shoulder_data[4] = { 0 };
 	double elbow_data[4] = { 0 };
-	double shouble_suboffset[4] = { 0 };
+	double shoulder_suboffset[4] = { 0 };
 	double elbow_suboffset[4] = { 0 };
+	double shoulder_smooth[4] = { 0 };
+	double elbow_smooth[4] = { 0 };
 	double tension_data[8] = { 0 };
 
 	//DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
@@ -238,16 +240,8 @@ void ActiveControl::Step() {
 
 	//减偏置
 	for (int i = 0; i < 4; ++i) {
-		shouble_suboffset[i] = shoulder_data[i] - shoulder_offset[i];
+		shoulder_suboffset[i] = shoulder_data[i] - shoulder_offset[i];
 		elbow_suboffset[i] = elbow_data[i] - elbow_offset[i];
-	}
-
-	//把力矩集中在一起
-	for (int i = 0; i < 4; ++i) {
-		tension_data[i] = shouble_suboffset[i];
-	}
-	for (int i = 0; i < 4; ++i) {
-		tension_data[i + 4] = elbow_suboffset[i];
 	}
 
 	// 求减去偏置之后的六维力，这里对z轴的力和力矩做了一个反向
@@ -261,15 +255,29 @@ void ActiveControl::Step() {
 	//freopen("CONOUT$", "w", stdout);
 	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", sub_bias[0], sub_bias[1], sub_bias[2], sub_bias[3], sub_bias[4], sub_bias[5]);
 
-	Raw2Trans(sub_bias, distData);
-	Trans2Filter(distData, filtedData);
-	FiltedVolt2Vel(filtedData);
+	//Raw2Trans(sub_bias, distData);
+	//Trans2Filter(distData, filtedData);
+	//FiltedVolt2Vel(filtedData);
+
+	Trans2Filter2(shoulder_suboffset,shoulder_smooth);
+	Trans2Filter2(elbow_suboffset, elbow_smooth);
+	//把力矩集中在一起
+	for (int i = 0; i < 4; ++i) {
+		tension_data[i] = shoulder_smooth[i];
+	}
+	for (int i = 0; i < 4; ++i) {
+		tension_data[i + 4] = elbow_smooth[i];
+	}
+
+
+
 	if (is_moving_) {
 		 ActMove();
 	}
 
 	//qDebug()<<"readings is "<<filtedData[0]<<" "<<filtedData[1]<<" "<<filtedData[2]<<" "<<filtedData[3]<<" "<<filtedData[4]<<" "<<filtedData[5];
 }
+
 void ActiveControl::Raw2Trans(double RAWData[6], double DistData[6]) {
 	//这一段就是为了把力从六维力传感器上传到手柄上，这里的A就是总的一个转换矩阵。
 	//具体的旋转矩阵我们要根据六维力的安装确定坐标系方向之后然后再确定。
@@ -351,6 +359,47 @@ void ActiveControl::Trans2Filter(double TransData[6], double FiltedData[6]) {
 	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", FiltedData[3], FiltedData[4], FiltedData[5], FiltedData[0], FiltedData[1], FiltedData[2]);
 }
 
+void ActiveControl::Trans2Filter2(double TransData[4], double FiltedData[4]) {
+	double Wc = 5;
+	double Ts = 0.1;
+	static int i = 0;
+	static double Last_Buffer[4] = { 0 };
+	static double Last2_Buffer[4] = { 0 };
+	static double Force_Buffer[4] = { 0 };
+	static double Last_FT[4] = { 0 };
+	static double Last2_FT[4] = { 0 };
+	for (int m = 0; m < 4; m++)
+	{
+		if (i == 0)
+		{
+			Last2_Buffer[m] = TransData[m];
+			FiltedData[m] = 0;
+			i++;
+		}
+		else if (i == 1)
+		{
+			Last_Buffer[m] = TransData[m];
+			FiltedData[m] = 0;
+			i++;
+		}
+		else
+		{
+			//二阶巴特沃斯低通滤波器
+			Force_Buffer[m] = TransData[m];
+			FiltedData[m] = (1 / (Wc*Wc + 2 * 1.414*Wc / Ts + 4 / (Ts*Ts)))*((Wc*Wc)*Force_Buffer[m]
+				+ (2 * Wc*Wc)*Last_Buffer[m]
+				+ (Wc*Wc)*Last2_Buffer[m]
+				- (2 * Wc*Wc - 8 / (Ts*Ts))*Last_FT[m]
+				- (Wc*Wc - 2 * 1.414*Wc / Ts + 4 / (Ts*Ts))*Last2_FT[m]);
+
+			Last2_FT[m] = Last_FT[m];
+			Last_FT[m] = FiltedData[m];
+			Last2_Buffer[m] = Last_Buffer[m];
+			Last_Buffer[m] = Force_Buffer[m];
+		}
+	}
+}
+
 void ActiveControl::FiltedVolt2Vel(double FiltedData[6]) {
 	MatrixXd Vel(2, 1);
 	MatrixXd Pos(2, 1);
@@ -403,6 +452,31 @@ void ActiveControl::FiltedVolt2Vel(double FiltedData[6]) {
 	//printf("肩部速度: %lf\n", Ud_Shoul);
 	//printf("肘部速度: %lf\n", Ud_Arm);
 }
+
+void ActiveControl::FiltedVolt2Vel2(double ForceVector[4]) {
+	MatrixXd vel(2, 1);
+	MatrixXd pos(2, 1);
+	
+	VectorXd shoulder_force_vector(3);
+	VectorXd elbow_force_vector(3);
+	VectorXd six_dimensional_force_simulation(6);
+
+	double angle[2];
+	
+	ControlCard::GetInstance().GetEncoderData(angle);
+
+	pos(0, 0) = angle[0];
+	pos(1, 0) = angle[1];
+	shoulder_force_vector(0) = ForceVector[0];
+	shoulder_force_vector(1) = ForceVector[1];
+	shoulder_force_vector(2) = 0;
+	elbow_force_vector(0) = ForceVector[2];
+	elbow_force_vector(1) = ForceVector[3];
+	elbow_force_vector(2) = 0;
+
+
+}
+
 void ActiveControl::ActMove() {
 	ControlCard::GetInstance().ProtectedVelocityMove(ControlCard::ShoulderAxisId, Ud_Shoul);
 	ControlCard::GetInstance().ProtectedVelocityMove(ControlCard::ElbowAxisId, Ud_Arm);
