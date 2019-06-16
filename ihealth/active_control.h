@@ -34,8 +34,8 @@ private:
 	void Trans2Filter2(double TransData[4], double FiltedData[4]);
 	void FiltedVolt2Vel(double FiltedData[6]);
 	void FiltedVolt2Vel2(double ForceVector[4]);
-	//将传感器的数据处理成两个三维矢量，但由于矢量只在两个方向上有作用，故需输出4个数据。这里要先知道传感器的安装位置
-	void SensorDataTo2Vector(double SensorData[8],double ForceVector[4]);
+	//将传感器的数据处理成两个二维矢量，由于矢量只在两个方向上有作用，故需输出4个数据。这里要先知道传感器的安装位置
+	void SensorDataToForceVector(double shouldersensordata[4], double elbowsensordata[4],double ForceVector[4]);
 
 public:
 	bool is_exit_thread_;

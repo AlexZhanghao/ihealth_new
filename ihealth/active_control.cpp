@@ -232,7 +232,7 @@ void ActiveControl::Step() {
 	double elbow_suboffset[4] = { 0 };
 	double shoulder_smooth[4] = { 0 };
 	double elbow_smooth[4] = { 0 };
-	double tension_data[8] = { 0 };
+	double force_vector[4] = { 0 };
 
 	//DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
 	DataAcquisition::GetInstance().AcquisiteShoulderTensionData(shoulder_data);
@@ -258,18 +258,15 @@ void ActiveControl::Step() {
 	//Raw2Trans(sub_bias, distData);
 	//Trans2Filter(distData, filtedData);
 	//FiltedVolt2Vel(filtedData);
-
+	
+	//先将传感器获取的数据滤波
 	Trans2Filter2(shoulder_suboffset,shoulder_smooth);
 	Trans2Filter2(elbow_suboffset, elbow_smooth);
-	//把力矩集中在一起
-	for (int i = 0; i < 4; ++i) {
-		tension_data[i] = shoulder_smooth[i];
-	}
-	for (int i = 0; i < 4; ++i) {
-		tension_data[i + 4] = elbow_smooth[i];
-	}
+	
+	//将传感器数据转成力矢量
+	SensorDataToForceVector(shoulder_smooth, elbow_smooth, force_vector);
 
-
+	FiltedVolt2Vel2(force_vector);
 
 	if (is_moving_) {
 		 ActMove();
@@ -398,6 +395,35 @@ void ActiveControl::Trans2Filter2(double TransData[4], double FiltedData[4]) {
 			Last_Buffer[m] = Force_Buffer[m];
 		}
 	}
+}
+
+void ActiveControl::SensorDataToForceVector(double shouldersensordata[4], double elbowsensordata[4], double ForceVector[4]) {
+	double shoulderdataX = shouldersensordata[0] - shouldersensordata[1];
+	double shoulderdataY = shouldersensordata[2] - shouldersensordata[3];
+	double elbowdataX = elbowsensordata[0] - elbowsensordata[1];
+	double elbowdataY = elbowsensordata[2] - elbowsensordata[3];
+	
+	//合成的力矢量
+	Vector2d shoulderforce;
+	Vector2d elbowforce;
+	shoulderforce << shoulderdataX, shoulderdataY;
+	elbowforce << elbowdataX, elbowdataY;
+
+	//将力分别旋转到坐标系3、5上面
+	Matrix2d shoulderrotationmatrix;
+	Matrix2d elbowrotationmatrix;
+	shoulderrotationmatrix << cos(29.49* M_PI / 180), cos(60.51* M_PI / 180),
+		cos(119.49* M_PI / 180), cos(29.49* M_PI / 180);
+	elbowrotationmatrix << cos(30.13* M_PI / 180), cos(120.13* M_PI / 180),
+		cos(59.83* M_PI / 180), cos(30.13* M_PI / 180);
+
+	shoulderforce = shoulderrotationmatrix * shoulderforce;
+	elbowforce = elbowrotationmatrix * elbowforce;
+
+	ForceVector[0] = shoulderforce(0);
+	ForceVector[1] = shoulderforce(1);
+	ForceVector[2] = elbowforce(0);
+	ForceVector[3] = elbowforce(1);
 }
 
 void ActiveControl::FiltedVolt2Vel(double FiltedData[6]) {

@@ -58,7 +58,7 @@ extern Vector3d AxisPosition[5];
 
 //这个函数实际上就是在计算运动旋量ζ
 template<typename DerivedA, typename DerivedB, typename DerivedC>
-void CalcTwist(const MatrixBase<DerivedA>& axis, const MatrixBase<DerivedB>&pos, MatrixBase<DerivedC>& twist) {
+void CalculateSpinor(const MatrixBase<DerivedA>& axis, const MatrixBase<DerivedB>&pos, MatrixBase<DerivedC>& twist) {
 	Matrix3d axis_hat;
 	twist.setZero();
 	axis_hat <<
@@ -80,8 +80,10 @@ void pinv(const MatrixBase<DerivedA>& A,const MatrixBase<DerivedB>&G, MatrixBase
 	B=(A_temp.inverse())*A.transpose()*G;
 
 }
+
+//将向量转成矩阵，从而化叉乘为点乘
 template<typename DerivedA, typename DerivedB>
-void V2h(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& Y)
+void Vector3ToMatrix3X3(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& Y)
 {
 	MatrixXd y(3,3);
     y.setZero();
@@ -93,19 +95,19 @@ void V2h(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& Y)
 
 //这个函数的意思居然是求伴随矩阵，从4*4的转换到6*6的
 template<typename DerivedA, typename DerivedB>
-void Ad426(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& A) {
+void CalculateAdjointMatrix(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& A) {
 	MatrixXd Y(3,3);
 	Vector3d h(3);
 	A.setZero();
 	A.block(0, 0, 3, 3) = X.block(0, 0, 3, 3);
 	A.block(3,3,3,3)=X.block(0,0,3,3);
 	h=X.block(0,3,3,1);
-	V2h(h,Y);
+	Vector3ToMatrix3X3(h,Y);
 	A.block(3,0,3,3)=Y*X.block(0,0,3,3);
 }
 template<typename DerivedA, typename DerivedB>
-void h2V(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& b) {
-	//这里出来的这个b就是旋转矢量ξ，只不过是因为我们之前的Bh是个4*4，这里又把它弄回来了而已
+void MatrixToVector(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& b) {
+	//这里出来的这个b就是旋转矢量ξ，只不过是因为我们之前的spinor_hat是个4*4，这里又把它弄回来了而已
 	//这里的b就是6*1的了
 	b(0)=-X(1,2);
 	b(1)=X(0,2);
@@ -114,7 +116,7 @@ void h2V(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& b) {
 }
 
 template<typename DerivedA, typename DerivedB>
-void fwd_geo_coup(const MatrixBase<DerivedA>& U, MatrixBase<DerivedB>& theta) {
+void MotorAngleToJointAngle(const MatrixBase<DerivedA>& U, MatrixBase<DerivedB>& theta) {
 	MatrixXd meta(5,2);
 	VectorXd thetab(5);
 
@@ -130,11 +132,6 @@ void fwd_geo_coup(const MatrixBase<DerivedA>& U, MatrixBase<DerivedB>& theta) {
 	theta=thetab+meta*U;
 }
 
-template<typename DerivedA, typename DerivedB>
-void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<DerivedB>& elbowforcevector,double tau[5]) {
-
-}
-
 template<typename DerivedA, typename DerivedB,typename DerivedC>
 void  damping_control(const MatrixBase<DerivedA>& Fh, MatrixBase<DerivedB>& U,MatrixBase<DerivedC>& Ub,double Fc,double a,double b)
 {
@@ -148,28 +145,28 @@ void  damping_control(const MatrixBase<DerivedA>& Fh, MatrixBase<DerivedB>& U,Ma
 	VectorXd d(5);
 	VectorXd diag(6);
 	
-	MatrixXd Jb(6,5);
+	MatrixXd jacobian(6,5);
 	MatrixXd p_X(2,6);
 	MatrixXd Co(2,2);
 	VectorXd Co_tem(6);
 	MatrixXd G(6,6);
 	//这里的U是电机的输出角度2*1（我们可以通过获取当前角度直接获得），然后theta是5*1，分别是
 	//5个关节的角度。下面这个函数就是把电机的角度转换为关节的角度。
-	fwd_geo_coup(U,theta);
+	MotorAngleToJointAngle(U,theta);
 	
 
 	con <<360.0/(2*M_PI),0,
 		0,360.0/(2*M_PI);
 
-	//这里的Bh和bb就是为了算J的每一列得到的
-	Matrix4d Bh[5];
-	Matrix<double, 6, 1> bb[5];
+	//这里的spinor_hat和spinor就是为了算J的每一列得到的
+	Matrix4d spinor_hat[5];
+	Matrix<double, 6, 1> spinor[5];
 	for (size_t i = 0; i < 5; ++i) {
-		//AxisDirection:3*3 AxisPosition:3*3 Bh:4*4
-		//这里的Bh输出的是一个4*4的矩阵，在灿神的文本中这个叫做B_hat.然后h2V是把矩阵变成向量。
-		//这里的bb[i]是一个6*1的向量
-		CalcTwist(AxisDirection[i], AxisPosition[i], Bh[i]);
-		h2V(Bh[i], bb[i]);
+		//AxisDirection:3*3 AxisPosition:3*3 spinor_hat:4*4
+		//这里的spinor_hat输出的是一个4*4的矩阵，在灿神的文本中这个叫做B_hat.然后MatrixToVector是把矩阵变成向量。
+		//这里的spinor[i]是一个6*1的向量
+		CalculateSpinor(AxisDirection[i], AxisPosition[i], spinor_hat[i]);
+		MatrixToVector(spinor_hat[i], spinor[i]);
 	}
 	/*
 	这里的m应该是ζhat，这一点我还不知道是什么东西。
@@ -178,7 +175,7 @@ void  damping_control(const MatrixBase<DerivedA>& Fh, MatrixBase<DerivedB>& U,Ma
 	*/
 	Matrix4d m[4];
 	for (size_t i = 0; i < 4; ++i) {
-		m[i] = -Bh[i+1] * (2 * M_PI / 360.0)*theta(i+1);
+		m[i] = -spinor_hat[i+1] * (2 * M_PI / 360.0)*theta(i+1);
 	}
 	Matrix4d exp_m[4];
 	exp_m[3]=m[3].exp();
@@ -186,18 +183,18 @@ void  damping_control(const MatrixBase<DerivedA>& Fh, MatrixBase<DerivedB>& U,Ma
 	exp_m[1]=exp_m[2]*(m[1].exp());
 	exp_m[0]=exp_m[1]*(m[0].exp());
 	Matrix<double, 6, 6> A[4];
-	Ad426(exp_m[0],A[0]);
-	Ad426(exp_m[1],A[1]);
-	Ad426(exp_m[2],A[2]);
-	Ad426(exp_m[3],A[3]);
+	CalculateAdjointMatrix(exp_m[0],A[0]);
+	CalculateAdjointMatrix(exp_m[1],A[1]);
+	CalculateAdjointMatrix(exp_m[2],A[2]);
+	CalculateAdjointMatrix(exp_m[3],A[3]);
 	
 	//这里对应MR中p202，因为一开始就是在体坐标系中表示的，
-    //所以这里bb本就指的是Bi
-	Jb.block(0, 0, 6, 1) = A[0] * bb[0];
-	Jb.block(0, 1, 6, 1) = A[1] * bb[1];
-	Jb.block(0, 2, 6, 1) = A[2] * bb[2];
-	Jb.block(0, 3, 6, 1) = A[3] * bb[3];
-	Jb.block(0, 4, 6, 1) = bb[4];
+    //所以这里spinor本就指的是Bi
+	jacobian.block(0, 0, 6, 1) = A[0] * spinor[0];
+	jacobian.block(0, 1, 6, 1) = A[1] * spinor[1];
+	jacobian.block(0, 2, 6, 1) = A[2] * spinor[2];
+	jacobian.block(0, 3, 6, 1) = A[3] * spinor[3];
+	jacobian.block(0, 4, 6, 1) = spinor[4];
 	diag << a, a, a, b, b, b;//度量矩阵
 	Co_tem << 20, 20, 20, 1, 1, 1;//六维力的比例系数
 	G=diag.asDiagonal();
@@ -209,21 +206,86 @@ void  damping_control(const MatrixBase<DerivedA>& Fh, MatrixBase<DerivedB>& U,Ma
 		0, 1,
 		0, 1.3214,
 		0, 0.6607;
-	//这里就是Γ = J * η。所以说这个meta就是η，Jb就是J
-	Matrix<double, 6, 2> J = Jb*meta;
-	pinv(J,G,p_X);//投影矩阵
+	//这里就是Γ = J * η。所以说这个meta就是η，jacobian就是J
+	Matrix<double, 6, 2> MapMatrix = jacobian*meta;
+	pinv(MapMatrix,G,p_X);//投影矩阵
 	//Fc-导纳系数，Fh-六维力，co-六维力单位转换矩阵，con-六维速度单位转换矩阵（从弧度转为度），Ub-电机转速
 	//这里p_X就是这个投影矩阵了，最后的Vd = ACF,这里Co就是这个C，然后Fc就是这个导纳系数。最后多乘个0.1应该是太
 	//灵敏了的调整。然后最后要转换，把电机的速度变为角度，因为我们外面是用的角度。
 	Ub=con*(p_X*Co*Fh*Fc*0.15);
 }
+
+//求伪逆
+template<typename _Matrix_Type_>
+_Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon =
+	std::numeric_limits<double>::epsilon())
+{
+	Eigen::JacobiSVD< _Matrix_Type_ > svd(a, Eigen::ComputeThinU | Eigen::ComputeThinV);
+	double tolerance = epsilon * max(a.cols(), a.rows()) *svd.singularValues().array().abs()(0);
+	return svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
+}
+
+template<typename DerivedA, typename DerivedB>
+void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<DerivedB>& elbowforcevector, double tau[5]) {
+	Matrix3d axisdirection_hat[4];
+	Matrix3d spinor_hat[4];
+	Matrix3d so3[4];
+	Matrix3d SO3[4];
+
+
+	Vector3d pa2_5 = Vector3d(0, 0, d4 - elbow_installationsite_to_coordinate5 - d5);
+	Vector3d pa1_3 = Vector3d(d3 - shouler_installationsite_to_coordinate4, 0, 0);
+	Vector3d f2_5;
+	Vector3d f1_3;
+	Vector3d p5_4 = Vector3d(0, -d5, -r5);
+	Vector3d p4_3 = Vector3d(d3, 0, 0);
+	Vector3d p3_2 = Vector3d(0, dy_2, dz_2);
+	Vector3d p2_1 = Vector3d(0, -d1, -d2);
+
+
+	VectorXd Co_tem(6);
+	VectorXd joint_angle(5);
+
+	//Co_tem << 20, 20, 20, 1, 1, 1;//六维力的放大系数
+	//Co = Co_tem.asDiagonal();
+
+	MotorAngleToJointAngle(motorangle, joint_angle);
+
+	//罗德里格斯公式,这里只计算了轴2到轴5
+	for (int i = 0; i < 4; ++i) {
+		XmultiToDotmulti(AxisDirection[i + 1], axisdirection_hat[i])
+		so3[i] = axisdirection_hat[i] * (M_PI / 180)*	joint_angle[i + 1];
+		SO3[i] = so3[i].exp();
+	}
+
+	//现在要直接从力矩到速度，所以不再需要雅克比矩阵了
+	//MatrixXd jacobian1(6, 5);
+	//jacobian1 = jacobian;
+	//jacobian1 = jacobian.transpose();
+	//moment = jacobian1 * six_sensor_data;
+
+	Vector3d f5_5;
+	Vector3d n5_5;
+	Vector3d f4_4;
+	Vector3d n4_4;
+	Vector3d f3_3;
+	Vector3d n3_3;
+	Vector3d f2_2;
+	Vector3d n2_2;
+	Vector3d f1_1;
+	Vector3d n1_1;
+
+	//力矩平衡公式
+	
+}
+
 template<typename DerivedA, typename DerivedB>
 void fwd_geo_kineB(const MatrixBase<DerivedA>& theta, MatrixBase<DerivedB>& T0h)
 {
 	Matrix4d exp_m[5];
 	Matrix4d Bh[5];
 	for (size_t i = 0; i < 5; ++i) {
-		CalcTwist(AxisDirection[i], AxisPosition[i], Bh[i]);
+		CalculateSpinor(AxisDirection[i], AxisPosition[i], Bh[i]);
 		exp_m[i] = Bh[i] * (2 * M_PI / 360)*theta(i);
 	}
 	Matrix4d T0h0;
@@ -281,8 +343,8 @@ void Cal_phg(const MatrixBase<DerivedA>& R0h, MatrixBase<DerivedB>& t, MatrixBas
 	Co_tem << 1,1,1;
 	phs << -0.0447, -0.1055, 0;
 	Rhs = Co_tem.asDiagonal();
-	V2h(-R0h.transpose()*m*g, A);
-	V2h(phs, N);
+	Vector3ToMatrix3X3(-R0h.transpose()*m*g, A);
+	Vector3ToMatrix3X3(phs, N);
 	b = Rhs*t + N*Rhs*f;
 	/*A_temp = A.transpose()*A;
 	A_tem = A_temp.inverse();
@@ -300,7 +362,7 @@ void Cal_CoAdFg(const MatrixBase<DerivedA>& phg, MatrixBase<DerivedB>& R0h, Matr
 	MatrixXd v2(3, 3);
 	g << 9.8, 0, 0;
 	CoAdFg<<0,0,0,0,0,0;
-	V2h(phg, v2);
+	Vector3ToMatrix3X3(phg, v2);
 	h = v2*R0h.transpose()*m*g;
 	n = R0h.transpose()*m*g;
 	CoAdFg.head(3) = h;
