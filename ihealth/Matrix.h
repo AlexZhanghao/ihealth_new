@@ -226,7 +226,7 @@ _Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon =
 }
 
 template<typename DerivedA, typename DerivedB>
-void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<DerivedB>& elbowforcevector, double tau[5]) {
+void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<DerivedB>& elbowforcevector, double moment[5]) {
 	Matrix3d axisdirection_hat[4];
 	Matrix3d spinor_hat[4];
 	Matrix3d so3[4];
@@ -276,7 +276,22 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	Vector3d n1_1;
 
 	//力矩平衡公式
-	
+	f5_5 = elbowforcevector;
+	n5_5 = pa2_5.cross(f5_5);
+	f4_4 = SO[3] * f5_5;
+	n4_4 = SO[3] * n5_5 + p5_4.cross(f4_4);
+	f3_3 = SO[2] * f4_4 + f1_3;
+	n3_3 = SO[2] * n4_4 + p4_3.cross(SO[2] * f4_4) + pa1_3.cross(f1_3);
+	f2_2 = SO[1] * f3_3;
+	n2_2 = SO[1] * n3_3 + p3_2.cross(f2_2);
+	f1_1 = SO[0] * f2_2;
+	n1_1 = SO[0] * n2_2 + p2_1.cross(f1_1);
+
+	moment[0] = n1_1(3);
+	moment[1] = n2_2(3);
+	moment[2] = n3_3(3);
+	moment[3] = n4_4(3);
+	moment[4] = n5_5(3);
 }
 
 template<typename DerivedA, typename DerivedB>

@@ -488,6 +488,7 @@ void ActiveControl::FiltedVolt2Vel2(double ForceVector[4]) {
 	VectorXd six_dimensional_force_simulation(6);
 
 	double angle[2];
+	double moment[5];
 	
 	ControlCard::GetInstance().GetEncoderData(angle);
 
@@ -499,6 +500,8 @@ void ActiveControl::FiltedVolt2Vel2(double ForceVector[4]) {
 	elbow_force_vector(0) = ForceVector[2];
 	elbow_force_vector(1) = ForceVector[3];
 	elbow_force_vector(2) = 0;
+
+	MomentBalance(shoulder_force_vector, elbow_force_vector, moment);
 
 
 }
