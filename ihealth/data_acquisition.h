@@ -17,6 +17,8 @@ public:
 	void AcquisiteShoulderTensionData(double shoulder_tension_output[4]);
 	//肘部传感器数据的采集函数
 	void AcquisiteElbowTensionData(double elbow_tension_output[4]);
+	//这里尝试下把肩肘的数据采集放在一起，感觉这样性能可以提升
+	void AcquisiteTensionData(double tension_output[8]);
 	void AcquisiteGripData(double grip[1]);
 	double ShoulderTorque();
 	double ElbowTorque();

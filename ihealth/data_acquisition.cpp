@@ -122,6 +122,19 @@ void DataAcquisition::AcquisiteElbowTensionData(double elbow_tension_output[4]) 
 
 }
 
+void DataAcquisition::AcquisiteTensionData(double tension_output[8]) {
+	TaskHandle taskHandle = 0;
+	int32 read = 0;
+	int status = 0;
+	double tension_data[8]{ 0 };
+
+	status = DAQmxReadAnalogF64(taskHandle, 1, 0.2, DAQmx_Val_GroupByScanNumber, tension_data, 8, &read, NULL);
+
+	for (int i = 0; i < 4; ++i) {
+		tension_output[i] = tension_data[i];
+	}
+}
+
 void DataAcquisition::AcquisiteSixDemensionData(double output_buf[6]) {
 	TaskHandle taskHandle = 0;
 	int32 read = 0;

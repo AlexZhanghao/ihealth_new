@@ -23,6 +23,22 @@ public:
 	void SetSAAMax(double saa);
 	void SetSFEMax(double sfe);
 
+public:
+	//输出肩肘部压力转化后的力矩数据输出到txt文件
+	void MomentExport();
+
+	vector<double> moment_data[2];
+	
+
+public:
+	bool is_exit_thread_;
+	bool is_moving_;
+	double six_dimension_offset_[6];
+	double shoulder_offset[4];
+	double elbow_offset[4];
+	double two_arm_offset[8];
+	double cycle_time_in_second_;
+
 private:
 	void MoveInNewThread();
 	void ExitMoveThread();
@@ -37,13 +53,6 @@ private:
 	//将传感器的数据处理成两个二维矢量，由于矢量只在两个方向上有作用，故需输出4个数据。这里要先知道传感器的安装位置
 	void SensorDataToForceVector(double shouldersensordata[4], double elbowsensordata[4],double ForceVector[4]);
 
-public:
-	bool is_exit_thread_;
-	bool is_moving_;
-	double six_dimension_offset_[6];
-	double shoulder_offset[4];
-	double elbow_offset[4];
-	double cycle_time_in_second_;
 
 private:
 	HANDLE move_thread_handle_;

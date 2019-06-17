@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <sstream>
+#include <fstream>
 #include <process.h>
 #include <windows.h>
 
@@ -149,22 +150,36 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 	//	active->six_dimension_offset_[i] = sum[i] / 10;
 	//}
 
-	//求压力传感器的偏置
-	double shoulder_sum[4]{ 0.0 };
-	double elbow_sum[4]{ 0.0 };
-	double shoulder_buf[4]{ 0.0 };
-	double elbow_buf[4]{ 0.0 };
+	////求压力传感器的偏置
+	//double shoulder_sum[4]{ 0.0 };
+	//double elbow_sum[4]{ 0.0 };
+	//double shoulder_buf[4]{ 0.0 };
+	//double elbow_buf[4]{ 0.0 };
+	//for (int i = 0; i < 10; ++i) {
+	//	DataAcquisition::GetInstance().AcquisiteShoulderTensionData(shoulder_buf);
+	//	DataAcquisition::GetInstance().AcquisiteElbowTensionData(elbow_buf);
+	//	for (int j = 1; j < 4; ++j) {
+	//		shoulder_sum[i] += shoulder_buf[i];
+	//		elbow_sum[i] += elbow_buf[i];
+	//	}
+	//}
+	//for (int i = 0; i < 4; ++i) {
+	//	active->shoulder_offset[i] = shoulder_sum[i] / 10;
+	//	active->elbow_offset[i] = elbow_sum[i] / 10;
+	//}
+
+	//将肩肘部合在一起
+	double two_arm_sum[8]{ 0.0 };
+	double two_arm_buf[8]{ 0.0 };
 	for (int i = 0; i < 10; ++i) {
-		DataAcquisition::GetInstance().AcquisiteShoulderTensionData(shoulder_buf);
-		DataAcquisition::GetInstance().AcquisiteElbowTensionData(elbow_buf);
-		for (int j = 1; j < 4; ++j) {
-			shoulder_sum[i] += shoulder_buf[i];
-			elbow_sum[i] += elbow_buf[i];
+		DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_buf);
+		for (int j = 0; j < 8; ++j) {
+			two_arm_sum[i] += two_arm_buf[i];
 		}
 	}
-	for (int i = 0; i < 6; ++i) {
-		active->shoulder_offset[i] = shoulder_sum[i] / 10;
-		active->elbow_offset[i] = elbow_sum[i] / 10;
+
+	for (int i = 0; i < 8; ++i) {
+		active->two_arm_offset[i] = two_arm_sum[i] / 10;
 	}
 
 	DataAcquisition::GetInstance().StopTask();
@@ -189,6 +204,9 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 		active->Step();
 
 	}
+
+	active->MomentExport();
+
 	//std::cout << "ActiveMoveThread Thread ended." << std::endl;
 	return 0;
 }
@@ -226,22 +244,29 @@ void ActiveControl::Step() {
 	double bias[6] = { 0 };
 	double sub_bias[6] = { 0 };
 
+	//压力传感器相关
 	double shoulder_data[4] = { 0 };
 	double elbow_data[4] = { 0 };
 	double shoulder_suboffset[4] = { 0 };
 	double elbow_suboffset[4] = { 0 };
 	double shoulder_smooth[4] = { 0 };
 	double elbow_smooth[4] = { 0 };
+	double two_arm_data[8] = { 0 };
+	double two_arm_suboffset[8] = { 0 };
 	double force_vector[4] = { 0 };
 
 	//DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
-	DataAcquisition::GetInstance().AcquisiteShoulderTensionData(shoulder_data);
-	DataAcquisition::GetInstance().AcquisiteElbowTensionData(elbow_data);
+	//DataAcquisition::GetInstance().AcquisiteShoulderTensionData(shoulder_data);
+	//DataAcquisition::GetInstance().AcquisiteElbowTensionData(elbow_data);
+	DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_data);
 
 	//减偏置
-	for (int i = 0; i < 4; ++i) {
-		shoulder_suboffset[i] = shoulder_data[i] - shoulder_offset[i];
-		elbow_suboffset[i] = elbow_data[i] - elbow_offset[i];
+	//for (int i = 0; i < 4; ++i) {
+	//	shoulder_suboffset[i] = shoulder_data[i] - shoulder_offset[i];
+	//	elbow_suboffset[i] = elbow_data[i] - elbow_offset[i];
+	//}
+	for (int i = 0; i < 8; ++i) {
+		two_arm_suboffset[i] = two_arm_data[i] - two_arm_offset[i];
 	}
 
 	// 求减去偏置之后的六维力，这里对z轴的力和力矩做了一个反向
@@ -259,18 +284,27 @@ void ActiveControl::Step() {
 	//Trans2Filter(distData, filtedData);
 	//FiltedVolt2Vel(filtedData);
 	
+	//因为滤波会用到之前的数据，所以在这里还是得把数据分开
+	for (int i = 0; i < 4; ++i) {
+		shoulder_suboffset[i] = two_arm_suboffset[i];
+	}
+	for (int j = 0; j < 4; ++j) {
+		elbow_suboffset[j] = two_arm_suboffset[j + 4];
+	}
+
 	//先将传感器获取的数据滤波
 	Trans2Filter2(shoulder_suboffset,shoulder_smooth);
 	Trans2Filter2(elbow_suboffset, elbow_smooth);
+	//Trans2Filter2(two_arm_suboffset, two_arm_smooth);
 	
 	//将传感器数据转成力矢量
 	SensorDataToForceVector(shoulder_smooth, elbow_smooth, force_vector);
 
 	FiltedVolt2Vel2(force_vector);
 
-	if (is_moving_) {
-		 ActMove();
-	}
+	//if (is_moving_) {
+	//	 ActMove();
+	//}
 
 	//qDebug()<<"readings is "<<filtedData[0]<<" "<<filtedData[1]<<" "<<filtedData[2]<<" "<<filtedData[3]<<" "<<filtedData[4]<<" "<<filtedData[5];
 }
@@ -503,7 +537,8 @@ void ActiveControl::FiltedVolt2Vel2(double ForceVector[4]) {
 
 	MomentBalance(shoulder_force_vector, elbow_force_vector, moment);
 
-
+	moment_data[0].push_back(moment[0]);
+	moment_data[1].push_back(moment[2]);
 }
 
 void ActiveControl::ActMove() {
@@ -598,4 +633,14 @@ void ActiveControl::SetSAAMax(double saa) {
 
 void ActiveControl::SetSFEMax(double sfe) {
 	elbow_angle_max_ = sfe;
+}
+
+void ActiveControl::MomentExport() {
+	ofstream dataFile1;
+	dataFile1.open("interpolation.txt", ofstream::app);
+	dataFile1 << "interpolation_sholuder" << "   " << "interpolation_elbow" << endl;
+	for (int i = 0; i < moment_data[0].size(); ++i) {
+		dataFile1 << moment_data[0][i] << "        " << moment_data[1][i] << endl;
+	}
+	dataFile1.close();
 }
