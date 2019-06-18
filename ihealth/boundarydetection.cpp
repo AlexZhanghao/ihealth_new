@@ -21,6 +21,9 @@ double raw_pull_data[20] = { 0 };
 const char *TCH = "Dev2/ai4:5";//力矩采集通道
 const char *pull_sensor_channel = "Dev2/ai0:3";
 
+double boundaryDetection::shoulder_torque = 0.0;
+double boundaryDetection::elbow_torque = 0.0;
+
 
 HHOOK   hHook;
 LRESULT   __stdcall   CBTHookProc(long   nCode, WPARAM   wParam, LPARAM   lParam) {
@@ -267,8 +270,10 @@ void boundaryDetection::check() {
 
 	// 力矩保护
 	DataAcquisition::GetInstance().AcquisiteTorqueData();
-	double abs_shoulder_torque = fabs(DataAcquisition::GetInstance().ShoulderTorque());
-	double abs_elbow_torque = fabs(DataAcquisition::GetInstance().ElbowTorque());
+	shoulder_torque = DataAcquisition::GetInstance().ShoulderTorque();
+	elbow_torque = DataAcquisition::GetInstance().ElbowTorque();
+	double abs_shoulder_torque = fabs(shoulder_torque);
+	double abs_elbow_torque = fabs(elbow_torque);
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//printf("%lf    %lf    \n", abs_shoulder_torque, abs_elbow_torque);

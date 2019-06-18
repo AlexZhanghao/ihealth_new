@@ -1,7 +1,8 @@
 ﻿#ifndef ACTIVECONTROL_H
 #define ACTIVECONTROL_H
 #include "control_card.h"
-
+#include"boundarydetection.h"
+#include<vector>
 #include "matrix.h"
 
 class ActiveControl {
@@ -26,8 +27,9 @@ public:
 public:
 	//输出肩肘部压力转化后的力矩数据输出到txt文件
 	void MomentExport();
-
-	vector<double> moment_data[2];
+	//把力矩传感器测得的数据输出到txt文件
+	void TorqueExport();
+	boundaryDetection detect;
 	
 
 public:

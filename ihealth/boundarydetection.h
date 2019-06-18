@@ -46,11 +46,9 @@ public:
 	 void SetRobot(Robot *pRobot);
 	 bool is_error_happens_;
 
-public:
-	//把力矩传感器测得的数据输出到txt文件
-	void TorqueExport();
+	 static double shoulder_torque;
+	 static double elbow_torque;
 
-	vector<double> torque_data[2];
 
 private:
      //光电行程开关的示数，0-ORG0，1-MEL0，2-ORG1，3-MEL1

@@ -18,7 +18,8 @@ double Force_Fc = 0.3;
 double Force_a =0.3;
 double Force_b = 1;
 
-
+vector<double> torque_data[2];
+vector<double> moment_data[2];
 
 double anglearm = 0;//手臂关节角
 double angleshoul = 0;//肩部关节角
@@ -203,10 +204,11 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 
 		active->Step();
 
+
 	}
 
 	active->MomentExport();
-
+	active->TorqueExport();
 	//std::cout << "ActiveMoveThread Thread ended." << std::endl;
 	return 0;
 }
@@ -259,6 +261,9 @@ void ActiveControl::Step() {
 	//DataAcquisition::GetInstance().AcquisiteShoulderTensionData(shoulder_data);
 	//DataAcquisition::GetInstance().AcquisiteElbowTensionData(elbow_data);
 	DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_data);
+
+	torque_data[0].push_back(detect.shoulder_torque);
+	torque_data[1].push_back(detect.elbow_torque);
 
 	//减偏置
 	//for (int i = 0; i < 4; ++i) {
@@ -535,7 +540,7 @@ void ActiveControl::FiltedVolt2Vel2(double ForceVector[4]) {
 	elbow_force_vector(1) = ForceVector[3];
 	elbow_force_vector(2) = 0;
 
-	MomentBalance(shoulder_force_vector, elbow_force_vector, moment);
+	MomentBalance(shoulder_force_vector, elbow_force_vector, angle, moment);
 
 	moment_data[0].push_back(moment[0]);
 	moment_data[1].push_back(moment[2]);
@@ -637,10 +642,20 @@ void ActiveControl::SetSFEMax(double sfe) {
 
 void ActiveControl::MomentExport() {
 	ofstream dataFile1;
-	dataFile1.open("interpolation.txt", ofstream::app);
-	dataFile1 << "interpolation_sholuder" << "   " << "interpolation_elbow" << endl;
+	dataFile1.open("moment.txt", ofstream::app);
+	dataFile1 << "moment_sholuder" << "   " << "moment_elbow" << endl;
 	for (int i = 0; i < moment_data[0].size(); ++i) {
 		dataFile1 << moment_data[0][i] << "        " << moment_data[1][i] << endl;
 	}
 	dataFile1.close();
+}
+
+void ActiveControl::TorqueExport() {
+	ofstream dataFile2;
+	dataFile2.open("torque.txt", ofstream::app);
+	dataFile2 << "torque_sholuder" << "   " << "torque_elbow" << endl;
+	for (int i = 0; i < torque_data[0].size(); ++i) {
+		dataFile2 << torque_data[0][i] << "        " << torque_data[1][i] << endl;
+	}
+	dataFile2.close();
 }
