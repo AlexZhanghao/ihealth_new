@@ -17,6 +17,16 @@ const double LowerArmLength = 0.384;
 const double InitAngle[5] = {
 	16.86, 14.83, 4.48, 5.92, 2.96
 };
+const double d1 = 0.23;
+const double d2 = 0.4683;
+const double d3 = 0.307;
+const double d4 = 0276;
+const double d5 = 0.174;
+const double r5 = 0.074;
+const double dy_2 = 0.087;
+const double dz_2 = 0.188;
+const double shouler_installationsite_to_coordinate4 = 0.140;
+const double elbow_installationsite_to_coordinate5 = 0.150;
 
 extern Vector3d AxisDirection[5];
 extern Vector3d AxisPosition[5];
@@ -232,9 +242,7 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	Matrix3d so3[4];
 	Matrix3d SO3[4];
 
-	double d1, d2, d3, d4, d5, r5;
-	double dy_2, dz_2;
-	double shouler_installationsite_to_coordinate4,elbow_installationsite_to_coordinate5;
+
 
 	Vector3d pa2_5 = Vector3d(0, 0, d4 - elbow_installationsite_to_coordinate5 - d5);
 	Vector3d pa1_3 = Vector3d(d3 - shouler_installationsite_to_coordinate4, 0, 0);
@@ -294,11 +302,11 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	f1_1 = SO3[0] * f2_2;
 	n1_1 = SO3[0] * n2_2 + p2_1.cross(f1_1);
 
-	moment[0] = n1_1(3);
-	moment[1] = n2_2(3);
-	moment[2] = n3_3(3);
-	moment[3] = n4_4(3);
-	moment[4] = n5_5(3);
+	moment[0] = n1_1(2);
+	moment[1] = n2_2(2);
+	moment[2] = n3_3(2);
+	moment[3] = n4_4(2);
+	moment[4] = n5_5(2);
 }
 
 template<typename DerivedA, typename DerivedB>

@@ -453,8 +453,8 @@ void ActiveControl::SensorDataToForceVector(double shouldersensordata[4], double
 	Matrix2d elbowrotationmatrix;
 	shoulderrotationmatrix << cos(29.49* M_PI / 180), cos(60.51* M_PI / 180),
 		cos(119.49* M_PI / 180), cos(29.49* M_PI / 180);
-	elbowrotationmatrix << cos(30.13* M_PI / 180), cos(120.13* M_PI / 180),
-		cos(59.83* M_PI / 180), cos(30.13* M_PI / 180);
+	elbowrotationmatrix << cos(59.87* M_PI / 180), cos(30.13* M_PI / 180),
+		cos(30.13* M_PI / 180), cos(120.13* M_PI / 180);
 
 	shoulderforce = shoulderrotationmatrix * shoulderforce;
 	elbowforce = elbowrotationmatrix * elbowforce;
