@@ -268,25 +268,25 @@ void boundaryDetection::check() {
 	//	}
 	//}
 
-	// 力矩保护
-	DataAcquisition::GetInstance().AcquisiteTorqueData();
-	shoulder_torque = DataAcquisition::GetInstance().ShoulderTorque();
-	elbow_torque = DataAcquisition::GetInstance().ElbowTorque();
-	double abs_shoulder_torque = fabs(shoulder_torque);
-	double abs_elbow_torque = fabs(elbow_torque);
-	//AllocConsole();
-	//freopen("CONOUT$", "w", stdout);
-	//printf("%lf    %lf    \n", abs_shoulder_torque, abs_elbow_torque);
-	if (abs_shoulder_torque > ShoulderTorqueLimit || abs_elbow_torque > ElbowTorqueLimit) {
-		//在这里要先把动作暂停下来，我们就用post message的方式去暂停，直接调用暂停的接口。
-		::PostMessage(m_hWnd, TorqueError, NULL, NULL);
-		// 然后显示一个MessageBox去提示复位
-		hHook = SetWindowsHookEx(WH_CBT, (HOOKPROC)CBTHookProc, NULL, GetCurrentThreadId());
-		int ret = ::MessageBox(m_hWnd, _T("关节力矩超出许可范围，请医生检查患者是否发生痉挛。"), _T("力矩保护"), MB_OK | MB_ICONEXCLAMATION);
-		if (ret == IDOK) {
-			ControlCard::GetInstance().ResetPosition();
-		}
-	}
+	//// 力矩保护
+	//DataAcquisition::GetInstance().AcquisiteTorqueData();
+	//shoulder_torque = DataAcquisition::GetInstance().ShoulderTorque();
+	//elbow_torque = DataAcquisition::GetInstance().ElbowTorque();
+	//double abs_shoulder_torque = fabs(shoulder_torque);
+	//double abs_elbow_torque = fabs(elbow_torque);
+	////AllocConsole();
+	////freopen("CONOUT$", "w", stdout);
+	////printf("%lf    %lf    \n", abs_shoulder_torque, abs_elbow_torque);
+	//if (abs_shoulder_torque > ShoulderTorqueLimit || abs_elbow_torque > ElbowTorqueLimit) {
+	//	//在这里要先把动作暂停下来，我们就用post message的方式去暂停，直接调用暂停的接口。
+	//	::PostMessage(m_hWnd, TorqueError, NULL, NULL);
+	//	// 然后显示一个MessageBox去提示复位
+	//	hHook = SetWindowsHookEx(WH_CBT, (HOOKPROC)CBTHookProc, NULL, GetCurrentThreadId());
+	//	int ret = ::MessageBox(m_hWnd, _T("关节力矩超出许可范围，请医生检查患者是否发生痉挛。"), _T("力矩保护"), MB_OK | MB_ICONEXCLAMATION);
+	//	if (ret == IDOK) {
+	//		ControlCard::GetInstance().ResetPosition();
+	//	}
+	//}
 
 	// 拉力保护
 	DataAcquisition::GetInstance().AcquisitePullSensorData();

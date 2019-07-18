@@ -11,12 +11,9 @@ public:
 	DataAcquisition &operator=(DataAcquisition &&) = delete;
 
 	void AcquisiteTorqueData();
+	void AcquisiteTorqueData(double torquedata[2]);
 	void AcquisitePullSensorData();
 	void AcquisiteSixDemensionData(double output_buf[6]);
-	//肩部传感器数据的采集函数
-	void AcquisiteShoulderTensionData(double shoulder_tension_output[4]);
-	//肘部传感器数据的采集函数
-	void AcquisiteElbowTensionData(double elbow_tension_output[4]);
 	//这里尝试下把肩肘的数据采集放在一起，感觉这样性能可以提升
 	void AcquisiteTensionData(double tension_output[8]);
 	void AcquisiteGripData(double grip[1]);
@@ -29,12 +26,18 @@ public:
 
 	bool StartTask();
 	bool StopTask();
+	bool StartTorqueTask();
+	bool StopTorqueTask();
+
+public:
+	double torque_data[20];
 
 private:
 	DataAcquisition();
 
 private:
 	TaskHandle m_task_handle;
+	TaskHandle t_task_handle;
 
 	double shoulder_raw_torque_ = 0.0;
 	double elbow_raw_torque_ = 0.0;
@@ -48,8 +51,7 @@ private:
 	static const char *kPullSensorChannel;
 	static const char *kSixDimensionForceChannel;
 	static const char *kGripChannel;
-	static const char *kShoulderTensionChannel;
-	static const char *kElbowTensionChannel;
+	static const char *kPressureForceChannel;
 	static const double kRawToReal;
 
 	static Eigen::Matrix<double, 6, 6>  kTransformMatrix;

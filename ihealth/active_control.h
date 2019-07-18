@@ -14,6 +14,8 @@ public:
     void StopMove();
 	// 采集一次六维力的数据，计算出电机速度，然后指示电机以这个速度运动.这是一轮循环
 	void Step();
+	//使用力矩传感器的循环
+	void TorqueStep();
 	bool IsFire();
 	// 获取机器人末端位置
 	void CalculatePlaneXY(short Axis_X, short Axis_Y, double XY[2]);
@@ -23,6 +25,8 @@ public:
 	// 设置关节运动范围
 	void SetSAAMax(double saa);
 	void SetSFEMax(double sfe);
+	//将力矩由主动关节换算到所有关节
+	void ActiveTorqueToAllTorque(double torque[2], double alltorque[5]);
 
 public:
 	//输出肩肘部压力转化后的力矩数据输出到txt文件
@@ -39,6 +43,7 @@ public:
 	double shoulder_offset[4];
 	double elbow_offset[4];
 	double two_arm_offset[8];
+	double torque_offset[2];
 	double cycle_time_in_second_;
 
 private:

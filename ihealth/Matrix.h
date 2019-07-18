@@ -91,6 +91,13 @@ void pinv(const MatrixBase<DerivedA>& A,const MatrixBase<DerivedB>&G, MatrixBase
 
 }
 
+template<typename DerivedA, typename DerivedB>
+void pinv2(const MatrixBase<DerivedA>& A, MatrixBase<DerivedB>& B) {
+	MatrixXd A_temp(2, 2);
+	A_temp = A.transpose()*A;
+	B = (A_temp.inverse())*A.transpose();
+}
+
 //将向量转成矩阵，从而化叉乘为点乘
 template<typename DerivedA, typename DerivedB>
 void Vector3ToMatrix3X3(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& Y)
@@ -307,6 +314,23 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	moment[2] = n3_3(2);
 	moment[3] = n4_4(2);
 	moment[4] = n5_5(2);
+}
+
+template<typename DerivedA, typename DerivedB>
+void AdmittanceControl(const MatrixBase<DerivedA>& torque , MatrixBase<DerivedB>& vel)
+{
+	MatrixXd meta(5, 2);
+	meta << 1, 0,
+		0.88, 0,
+		0, 1,
+		0, 1.3214,
+		0, 0.6607;
+
+	MatrixXd projection(2, 5);
+
+	pinv2(meta, projection);
+
+	vel = 0.9*projection * torque;
 }
 
 template<typename DerivedA, typename DerivedB>

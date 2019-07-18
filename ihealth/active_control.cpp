@@ -169,22 +169,40 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 	//	active->elbow_offset[i] = elbow_sum[i] / 10;
 	//}
 
-	//将肩肘部合在一起
-	double two_arm_sum[8]{ 0.0 };
-	double two_arm_buf[8]{ 0.0 };
-	for (int i = 0; i < 10; ++i) {
-		DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_buf);
-		for (int j = 0; j < 8; ++j) {
-			two_arm_sum[i] += two_arm_buf[i];
+	////将肩肘部合在一起
+	//double two_arm_sum[8]{ 0.0 };
+	//double two_arm_buf[8]{ 0.0 };
+	//for (int i = 0; i < 10; ++i) {
+	//	DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_buf);
+	//	for (int j = 0; j < 8; ++j) {
+	//		two_arm_sum[i] += two_arm_buf[i];
+	//	}
+	//}
+
+	//for (int i = 0; i < 8; ++i) {
+	//	active->two_arm_offset[i] = two_arm_sum[i] / 10;
+	//}
+
+	//求力矩传感器偏置
+	double torque_sum_offset[2]{ 0 };
+
+	//这里采到到的值会出现都是0的情况，所以加个检查的过程
+	while (torque_sum_offset[0] == 0) {
+		DataAcquisition::GetInstance().AcquisiteTorqueData();
+		for (int j = 0; j < 5; ++j) {
+			//0是肘，1是肩
+			torque_sum_offset[0] += DataAcquisition::GetInstance().torque_data[j + 5];
+			torque_sum_offset[1] += DataAcquisition::GetInstance().torque_data[15 + j];
 		}
 	}
 
-	for (int i = 0; i < 8; ++i) {
-		active->two_arm_offset[i] = two_arm_sum[i] / 10;
-	}
+	active->torque_offset[0] = torque_sum_offset[0] / 10;
+	active->torque_offset[1] = torque_sum_offset[1] / 10;
 
-	DataAcquisition::GetInstance().StopTask();
-	DataAcquisition::GetInstance().StartTask();
+	//DataAcquisition::GetInstance().StopTask();
+	//DataAcquisition::GetInstance().StartTask();
+	DataAcquisition::GetInstance().StopTorqueTask();
+	DataAcquisition::GetInstance().StartTorqueTask();
 
 	while (true) {
 		if (active->is_exit_thread_) {
@@ -202,13 +220,12 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 			}
 		}
 
-		active->Step();
-
-
+		//active->Step();
+		active->TorqueStep();
 	}
 
-	active->MomentExport();
-	active->TorqueExport();
+	//active->MomentExport();
+	//active->TorqueExport();
 	//std::cout << "ActiveMoveThread Thread ended." << std::endl;
 	return 0;
 }
@@ -262,8 +279,8 @@ void ActiveControl::Step() {
 	//DataAcquisition::GetInstance().AcquisiteElbowTensionData(elbow_data);
 	DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_data);
 
-	torque_data[0].push_back(detect.shoulder_torque);
-	torque_data[1].push_back(detect.elbow_torque);
+	//torque_data[0].push_back(detect.shoulder_torque);
+	//torque_data[1].push_back(detect.elbow_torque);
 
 	//减偏置
 	//for (int i = 0; i < 4; ++i) {
@@ -307,11 +324,70 @@ void ActiveControl::Step() {
 
 	FiltedVolt2Vel2(force_vector);
 
-	//if (is_moving_) {
-	//	 ActMove();
-	//}
+	if (is_moving_) {
+		 ActMove();
+	}
 
 	//qDebug()<<"readings is "<<filtedData[0]<<" "<<filtedData[1]<<" "<<filtedData[2]<<" "<<filtedData[3]<<" "<<filtedData[4]<<" "<<filtedData[5];
+}
+
+void ActiveControl::TorqueStep() {
+	//力矩传感器相关
+	double torque_data[2]{ 0 };
+	double torque_subdata[2]{ 0 };
+	double torque_alldata[5]{ 0 };
+
+	Vector2d vel;
+	VectorXd torque;
+
+	DataAcquisition::GetInstance().AcquisiteTorqueData();
+
+	//减偏置,0是肘，1是肩
+	//for (int i = 0; i < 2; ++i) {
+	//	torque_subdata[i] = torque_data[i] - torque_offset[i];
+	//}
+	torque_subdata[0] = DataAcquisition::GetInstance().torque_data[5];
+	torque_subdata[1] = DataAcquisition::GetInstance().torque_data[15];
+
+	ActiveTorqueToAllTorque(torque_subdata, torque_alldata);
+
+	for (int i = 0; i < 5; ++i) {
+		torque(i) = torque_alldata[i];
+	}
+
+	AdmittanceControl(torque, vel);
+
+	Ud_Shoul = vel(0);
+	Ud_Arm = vel(1);
+
+	if ((Ud_Arm > -0.5) && (Ud_Arm < 0.5))
+	{
+		Ud_Arm = 0;
+	}
+	if ((Ud_Shoul > -0.5) && (Ud_Shoul < 0.5))
+	{
+		Ud_Shoul = 0;
+	}
+	if (Ud_Arm > 3)
+	{
+		Ud_Arm = 3;
+	}
+	else if (Ud_Arm < -3)
+	{
+		Ud_Arm = -3;
+	}
+	if (Ud_Shoul > 3)
+	{
+		Ud_Shoul = 3;
+	}
+	else if (Ud_Shoul < -3)
+	{
+		Ud_Shoul = -3;
+	}
+
+	if (is_moving_) {
+		ActMove();
+	}
 }
 
 void ActiveControl::Raw2Trans(double RAWData[6], double DistData[6]) {
@@ -331,7 +407,7 @@ void ActiveControl::Raw2Trans(double RAWData[6], double DistData[6]) {
 		force_position_[2], 0, -force_position_[0],
 		-force_position_[1], force_position_[0], 0;
 	A.block(0, 0, 3, 3) = rotate_matrix_;
-	A.block(0, 3, 3, 1) = ForcePositionHat * rotate_matrix_;
+	A.block(0, 3, 3, 3) = ForcePositionHat * rotate_matrix_;
 	A.block(3, 3, 3, 3) = rotate_matrix_;
 	
 
@@ -544,6 +620,14 @@ void ActiveControl::FiltedVolt2Vel2(double ForceVector[4]) {
 
 	moment_data[0].push_back(moment[0]);
 	moment_data[1].push_back(moment[2]);
+}
+
+void ActiveControl::ActiveTorqueToAllTorque(double torque[2], double alltorque[5]) {
+	alltorque[0] = torque[1];
+	alltorque[1] = torque[1] * 3 / 2;
+	alltorque[2] = torque[0];
+	alltorque[3] = torque[0] * 56 / 50;
+	alltorque[4] = torque[0] * 74 / 50;
 }
 
 void ActiveControl::ActMove() {
