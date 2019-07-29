@@ -43,14 +43,14 @@ DataAcquisition::DataAcquisition() {
 	status = DAQmxStopTask(m_task_handle);
 
 	//力矩传感器
-	status = DAQmxCreateTask("TorqueDataTask", &t_task_handle);
-	status = DAQmxCreateAIVoltageChan(t_task_handle, kTorqueChannel, "TorqueDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
-	status = DAQmxCfgSampClkTiming(t_task_handle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
+	//status = DAQmxCreateTask("TorqueDataTask", &t_task_handle);
+	//status = DAQmxCreateAIVoltageChan(t_task_handle, kTorqueChannel, "TorqueDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
+	//status = DAQmxCfgSampClkTiming(t_task_handle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
 
-	status = DAQmxSetReadRelativeTo(t_task_handle, DAQmx_Val_MostRecentSamp);
-	status = DAQmxSetReadOffset(t_task_handle, 0);
-	status = DAQmxStartTask(t_task_handle);
-	status = DAQmxStopTask(t_task_handle);
+	//status = DAQmxSetReadRelativeTo(t_task_handle, DAQmx_Val_MostRecentSamp);
+	//status = DAQmxSetReadOffset(t_task_handle, 0);
+	//status = DAQmxStartTask(t_task_handle);
+	//status = DAQmxStopTask(t_task_handle);
 
 
 	//初始化变换矩阵

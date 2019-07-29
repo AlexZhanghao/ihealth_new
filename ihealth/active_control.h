@@ -16,6 +16,8 @@ public:
 	void Step();
 	//使用力矩传感器的循环
 	void TorqueStep();
+	//使用压力传感器的循环
+	void PressureStep();
 	bool IsFire();
 	// 获取机器人末端位置
 	void CalculatePlaneXY(short Axis_X, short Axis_Y, double XY[2]);
@@ -40,11 +42,11 @@ public:
 	bool is_exit_thread_;
 	bool is_moving_;
 	double six_dimension_offset_[6];
-	double shoulder_offset[4];
-	double elbow_offset[4];
 	double two_arm_offset[8];
 	double torque_offset[2];
 	double cycle_time_in_second_;
+	double shoulder_moment;
+	double elbow_moment;
 
 private:
 	void MoveInNewThread();
@@ -56,7 +58,7 @@ private:
 	void Trans2Filter(double TransData[6], double FiltedData[6]);
 	void Trans2Filter2(double TransData[4], double FiltedData[4]);
 	void FiltedVolt2Vel(double FiltedData[6]);
-	void FiltedVolt2Vel2(double ForceVector[4]);
+	void MomentCalculation(double ForceVector[4], double vel[2]);
 	//将传感器的数据处理成两个二维矢量，由于矢量只在两个方向上有作用，故需输出4个数据。这里要先知道传感器的安装位置
 	void SensorDataToForceVector(double shouldersensordata[4], double elbowsensordata[4],double ForceVector[4]);
 

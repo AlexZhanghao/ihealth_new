@@ -10,23 +10,27 @@
 
 
 using namespace Eigen;
+
 const double ShoulderWidth = 0.297;
 const double ShoulderLength = 0.435;
 const double UpperArmLength = 0.296;
 const double LowerArmLength = 0.384;
-const double InitAngle[5] = {
-	16.86, 14.83, 4.48, 5.92, 2.96
-};
+const double guide = 0.07;
+const double shouler_installationsite_to_coordinate4 = 0.140;
+const double elbow_installationsite_to_coordinate5 = 0.150;
 const double d1 = 0.23;
 const double d2 = 0.4683;
 const double d3 = 0.307;
-const double d4 = 0276;
+const double d4 = 0.276 + guide;
 const double d5 = 0.174;
 const double r5 = 0.074;
 const double dy_2 = 0.087;
 const double dz_2 = 0.188;
-const double shouler_installationsite_to_coordinate4 = 0.140;
-const double elbow_installationsite_to_coordinate5 = 0.150;
+//double sixdim_shoulder = 0.03;
+
+const double InitAngle[5] = {
+	0, 0, 0, 0, 15
+};
 
 extern Vector3d AxisDirection[5];
 extern Vector3d AxisPosition[5];
@@ -100,7 +104,7 @@ void pinv2(const MatrixBase<DerivedA>& A, MatrixBase<DerivedB>& B) {
 
 //将向量转成矩阵，从而化叉乘为点乘
 template<typename DerivedA, typename DerivedB>
-void Vector3ToMatrix3X3(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& Y)
+void VectorToMatrix(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& Y)
 {
 	MatrixXd y(3,3);
     y.setZero();
@@ -119,7 +123,7 @@ void CalculateAdjointMatrix(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>&
 	A.block(0, 0, 3, 3) = X.block(0, 0, 3, 3);
 	A.block(3,3,3,3)=X.block(0,0,3,3);
 	h=X.block(0,3,3,1);
-	Vector3ToMatrix3X3(h,Y);
+	VectorToMatrix(h,Y);
 	A.block(3,0,3,3)=Y*X.block(0,0,3,3);
 }
 template<typename DerivedA, typename DerivedB>
@@ -133,7 +137,7 @@ void MatrixToVector(const MatrixBase<DerivedA>& X, MatrixBase<DerivedB>& b) {
 }
 
 template<typename DerivedA, typename DerivedB>
-void MotorAngleToJointAngle(const MatrixBase<DerivedA>& U, MatrixBase<DerivedB>& theta) {
+void ActiveJointsAngleToAllJointsAngle(const MatrixBase<DerivedA>& U, MatrixBase<DerivedB>& theta) {
 	MatrixXd meta(5,2);
 	VectorXd thetab(5);
 
@@ -169,7 +173,7 @@ void  damping_control(const MatrixBase<DerivedA>& Fh, MatrixBase<DerivedB>& U,Ma
 	MatrixXd G(6,6);
 	//这里的U是电机的输出角度2*1（我们可以通过获取当前角度直接获得），然后theta是5*1，分别是
 	//5个关节的角度。下面这个函数就是把电机的角度转换为关节的角度。
-	MotorAngleToJointAngle(U,theta);
+	ActiveJointsAngleToAllJointsAngle(U,theta);
 	
 
 	con <<360.0/(2*M_PI),0,
@@ -249,20 +253,33 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	Matrix3d so3[4];
 	Matrix3d SO3[4];
 
-
+	Matrix3d R54;
+	Matrix3d R43;
+	Matrix3d R32;
+	Matrix3d R21;
+	Matrix3d RF13;
+	Matrix3d RF25;
+	Matrix3d P2_5;
+	Matrix3d P1_3;
+	Matrix3d to_zero;
+	MatrixXd Tf1_3(6, 6);
+	MatrixXd Tf2_5(6, 6);
 
 	Vector3d pa2_5 = Vector3d(0, 0, d4 - elbow_installationsite_to_coordinate5 - d5);
-	Vector3d pa1_3 = Vector3d(d3 - shouler_installationsite_to_coordinate4, 0, 0);
+	Vector3d pa1_3 = Vector3d(d3 - shouler_installationsite_to_coordinate4, 0, -dy_2);
 	Vector3d f2_5;
+	Vector3d n2_5;
 	Vector3d f1_3;
+	Vector3d n1_3;
 	Vector3d p5_4 = Vector3d(0, -d5, -r5);
 	Vector3d p4_3 = Vector3d(d3, 0, 0);
-	Vector3d p3_2 = Vector3d(0, dy_2, dz_2);
+	Vector3d p3_2 = Vector3d(0, dy_2, -dz_2);
 	Vector3d p2_1 = Vector3d(0, -d1, -d2);
-
 
 	VectorXd Co_tem(6);
 	VectorXd joint_angle(5);
+	VectorXd shoulder_force_moment(6);
+	VectorXd elbow_force_moment(6);
 
 	//Co_tem << 20, 20, 20, 1, 1, 1;//六维力的放大系数
 	//Co = Co_tem.asDiagonal();
@@ -271,20 +288,49 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	Pos(0, 0) = motorangle[0];
 	Pos(1, 0) = motorangle[1];
 
-	MotorAngleToJointAngle(Pos, joint_angle);
+	ActiveJointsAngleToAllJointsAngle(Pos, joint_angle);
 
-	//罗德里格斯公式,这里只计算了轴2到轴5
-	for (int i = 0; i < 4; ++i) {
-		Vector3ToMatrix3X3(AxisDirection[i + 1], axisdirection_hat[i]);
-		so3[i] = axisdirection_hat[i] * (M_PI / 180)*	joint_angle[i + 1];
-		SO3[i] = so3[i].exp();
+	for (int i = 0; i < 5; ++i) {
+		joint_angle(i) = (M_PI / 180)*joint_angle(i);
 	}
 
-	//现在要直接从力矩到速度，所以不再需要雅克比矩阵了
-	//MatrixXd jacobian1(6, 5);
-	//jacobian1 = jacobian;
-	//jacobian1 = jacobian.transpose();
-	//moment = jacobian1 * six_sensor_data;
+	//各个关节间的旋转矩阵
+	R54 <<
+		cos(joint_angle(4)), -sin(joint_angle(4)), 0,
+		0, 0, -1,
+		sin(joint_angle(4)), cos(joint_angle(4)), 0;
+	R43 <<
+		cos(joint_angle(3)), -sin(joint_angle(3)), 0,
+		sin(joint_angle(3)), cos(joint_angle(3)), 0,
+		0, 0, 1;
+	R32 <<
+		cos(joint_angle(2)), -sin(joint_angle(2)), 0,
+		0, 0, 1,
+		-sin(joint_angle(2)), -cos(joint_angle(2)), 0;
+	R21 <<
+		cos(joint_angle(1)), -sin(joint_angle(1)), 0,
+		0, 0, -1,
+		sin(joint_angle(1)), cos(joint_angle(1)), 0;
+
+
+	//力从套环到关节的旋转矩阵
+	to_zero.setZero();
+	RF13 <<
+		1, 0, 0,
+		0, 0.8710, 0.4914,
+		0, -0.4914, 0.8710;
+	RF25 <<
+		0, 0.8649, 0.5020,
+		0, -0.5020, 0.8649,
+		1, 0, 0;
+	VectorToMatrix(pa2_5, P2_5);
+	VectorToMatrix(pa1_3, P1_3);
+	Tf2_5 <<
+		RF25, to_zero,
+		P2_5*RF25, RF25;
+	Tf1_3 <<
+		RF13, to_zero,
+		P1_3*RF13, RF13;
 
 	Vector3d f5_5;
 	Vector3d n5_5;
@@ -297,17 +343,39 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	Vector3d f1_1;
 	Vector3d n1_1;
 
+	//这里直接把套环的广义力矢量变换到关节空间中
+	shoulder_force_moment = Tf1_3 * shoulderforcevector;
+	elbow_force_moment = Tf2_5 * elbowforcevector;
+	f1_3 << shoulder_force_moment(0), shoulder_force_moment(1), shoulder_force_moment(2);
+	n1_3 << shoulder_force_moment(3), shoulder_force_moment(4), shoulder_force_moment(5);
+	f2_5 << elbow_force_moment(0), elbow_force_moment(1), elbow_force_moment(2);
+	n2_5 << elbow_force_moment(3), elbow_force_moment(4), elbow_force_moment(5);
+
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//cout << "f1_3:" << f1_3 << "\n" << "n1_3:" << n1_3 << endl;
+	//cout << "f2_5:" << f2_5 << "\n" << "n2_5:" << n2_5 << endl;
+	//cout << "shoulder_force_moment:" << shoulder_force_moment << "\n" << "elbow_force_moment" << elbow_force_moment << endl;
+
 	//力矩平衡公式
-	f5_5 = elbowforcevector;
-	n5_5 = pa2_5.cross(f5_5);
-	f4_4 = SO3[3] * f5_5;
-	n4_4 = SO3[3] * n5_5 + p5_4.cross(f4_4);
-	f3_3 = SO3[2] * f4_4 + f1_3;
-	n3_3 = SO3[2] * n4_4 + p4_3.cross(SO3[2] * f4_4) + pa1_3.cross(f1_3);
-	f2_2 = SO3[1] * f3_3;
-	n2_2 = SO3[1] * n3_3 + p3_2.cross(f2_2);
-	f1_1 = SO3[0] * f2_2;
-	n1_1 = SO3[0] * n2_2 + p2_1.cross(f1_1);
+	f5_5 = f2_5;
+	n5_5 = n2_5;
+	f4_4 = R54 * f5_5;
+	n4_4 = R54 * n5_5 + p5_4.cross(f4_4);
+	f3_3 = R43 * f4_4 + f1_3;
+	n3_3 = R43 * n4_4 + p4_3.cross(R43 * f4_4) + n1_3;
+	f2_2 = R32 * f3_3;
+	n2_2 = R32 * n3_3 + p3_2.cross(f2_2);
+	f1_1 = R21 * f2_2;
+	n1_1 = R21 * n2_2 + p2_1.cross(f1_1);
+
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//cout << "f5_5:" << f5_5 << "\n" << "n5_5:" << n5_5 << endl;
+	//cout << "f4_4:" << f4_4 << "\n" << "n4_4:" << n4_4 << endl;
+	//cout << "f3_3:" << f3_3 << "\n" << "n3_3:" << n3_3 << endl;
+	//cout << "f2_2:\n" << f2_2 << "\n" << "n2_2:\n" << n2_2 << endl;
+	//cout << "f1_1:\n" << f1_1 << "\n" << "n1_1:\n" << n1_1 << endl;
 
 	moment[0] = n1_1(2);
 	moment[1] = n2_2(2);
@@ -319,6 +387,11 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 template<typename DerivedA, typename DerivedB>
 void AdmittanceControl(const MatrixBase<DerivedA>& torque , MatrixBase<DerivedB>& vel)
 {
+	Vector2d ratio;
+	Matrix2d m_ratio;
+	Vector2d admittance;
+	Matrix2d m_admittance;
+
 	MatrixXd meta(5, 2);
 	meta << 1, 0,
 		0.88, 0,
@@ -330,7 +403,12 @@ void AdmittanceControl(const MatrixBase<DerivedA>& torque , MatrixBase<DerivedB>
 
 	pinv2(meta, projection);
 
-	vel = 0.9*projection * torque;
+	ratio << 0.9, 0.9;
+	admittance << 3, 3.5;
+	m_ratio = ratio.asDiagonal();
+	m_admittance = admittance.asDiagonal();
+
+	vel = m_admittance * (m_ratio*projection * torque);
 }
 
 template<typename DerivedA, typename DerivedB>
@@ -397,8 +475,8 @@ void Cal_phg(const MatrixBase<DerivedA>& R0h, MatrixBase<DerivedB>& t, MatrixBas
 	Co_tem << 1,1,1;
 	phs << -0.0447, -0.1055, 0;
 	Rhs = Co_tem.asDiagonal();
-	Vector3ToMatrix3X3(-R0h.transpose()*m*g, A);
-	Vector3ToMatrix3X3(phs, N);
+	VectorToMatrix(-R0h.transpose()*m*g, A);
+	VectorToMatrix(phs, N);
 	b = Rhs*t + N*Rhs*f;
 	/*A_temp = A.transpose()*A;
 	A_tem = A_temp.inverse();
@@ -416,7 +494,7 @@ void Cal_CoAdFg(const MatrixBase<DerivedA>& phg, MatrixBase<DerivedB>& R0h, Matr
 	MatrixXd v2(3, 3);
 	g << 9.8, 0, 0;
 	CoAdFg<<0,0,0,0,0,0;
-	Vector3ToMatrix3X3(phg, v2);
+	VectorToMatrix(phg, v2);
 	h = v2*R0h.transpose()*m*g;
 	n = R0h.transpose()*m*g;
 	CoAdFg.head(3) = h;
