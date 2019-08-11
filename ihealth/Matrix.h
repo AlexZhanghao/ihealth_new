@@ -246,29 +246,21 @@ _Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon =
 	return svd.matrixV() *  (svd.singularValues().array().abs() > tolerance).select(svd.singularValues().array().inverse(), 0).matrix().asDiagonal() * svd.matrixU().adjoint();
 }
 
-template<typename DerivedA, typename DerivedB>
-void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<DerivedB>& elbowforcevector, double motorangle[2], double moment[5]) {
+template<typename DerivedA>
+void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motorangle[2], double moment[3]) {
 	Matrix3d axisdirection_hat[4];
 	Matrix3d spinor_hat[4];
 	Matrix3d so3[4];
 	Matrix3d SO3[4];
 
-	Matrix3d R54;
-	Matrix3d R43;
 	Matrix3d R32;
 	Matrix3d R21;
 	Matrix3d RF13;
-	Matrix3d RF25;
-	Matrix3d P2_5;
 	Matrix3d P1_3;
 	Matrix3d to_zero;
 	MatrixXd Tf1_3(6, 6);
-	MatrixXd Tf2_5(6, 6);
 
-	Vector3d pa2_5 = Vector3d(0, 0, d4 - elbow_installationsite_to_coordinate5 - d5);
 	Vector3d pa1_3 = Vector3d(d3 - shouler_installationsite_to_coordinate4, 0, -dy_2);
-	Vector3d f2_5;
-	Vector3d n2_5;
 	Vector3d f1_3;
 	Vector3d n1_3;
 	Vector3d p5_4 = Vector3d(0, -d5, -r5);
@@ -281,8 +273,11 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	VectorXd shoulder_force_moment(6);
 	VectorXd elbow_force_moment(6);
 
-	//Co_tem << 20, 20, 20, 1, 1, 1;//六维力的放大系数
-	//Co = Co_tem.asDiagonal();
+	//六维力相关的变量
+	MatrixXd sixdim_transfer(6, 6);
+	Matrix3d sixdim_rotation;
+	Matrix3d Sixdim_To_Coordinate3;
+	Vector3d sixdim_to_coordinate3 = Vector3d(d3 - shouler_installationsite_to_coordinate4, sixdim_shoulder, 0);
 
 	MatrixXd Pos(2, 1);
 	Pos(0, 0) = motorangle[0];
@@ -295,14 +290,6 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	}
 
 	//各个关节间的旋转矩阵
-	R54 <<
-		cos(joint_angle(4)), -sin(joint_angle(4)), 0,
-		0, 0, -1,
-		sin(joint_angle(4)), cos(joint_angle(4)), 0;
-	R43 <<
-		cos(joint_angle(3)), -sin(joint_angle(3)), 0,
-		sin(joint_angle(3)), cos(joint_angle(3)), 0,
-		0, 0, 1;
 	R32 <<
 		cos(joint_angle(2)), -sin(joint_angle(2)), 0,
 		0, 0, 1,
@@ -319,24 +306,19 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 		1, 0, 0,
 		0, 0.8710, 0.4914,
 		0, -0.4914, 0.8710;
-	RF25 <<
-		0, 0.8649, 0.5020,
-		0, -0.5020, 0.8649,
-		1, 0, 0;
-	VectorToMatrix(pa2_5, P2_5);
+	sixdim_rotation <<
+		1, 0, 0,
+		0, -1, 0,
+		0, 0, -1;
 	VectorToMatrix(pa1_3, P1_3);
-	Tf2_5 <<
-		RF25, to_zero,
-		P2_5*RF25, RF25;
+	VectorToMatrix(sixdim_to_coordinate3, Sixdim_To_Coordinate3);
 	Tf1_3 <<
 		RF13, to_zero,
 		P1_3*RF13, RF13;
+	sixdim_transfer <<
+		sixdim_rotation, to_zero,
+		Sixdim_To_Coordinate3*sixdim_rotation, sixdim_rotation;
 
-	Vector3d f5_5;
-	Vector3d n5_5;
-	Vector3d f4_4;
-	Vector3d n4_4;
-	Vector3d f3_3;
 	Vector3d n3_3;
 	Vector3d f2_2;
 	Vector3d n2_2;
@@ -344,12 +326,9 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	Vector3d n1_1;
 
 	//这里直接把套环的广义力矢量变换到关节空间中
-	shoulder_force_moment = Tf1_3 * shoulderforcevector;
-	elbow_force_moment = Tf2_5 * elbowforcevector;
+	shoulder_force_moment = sixdim_transfer * shoulderforcevector;
 	f1_3 << shoulder_force_moment(0), shoulder_force_moment(1), shoulder_force_moment(2);
 	n1_3 << shoulder_force_moment(3), shoulder_force_moment(4), shoulder_force_moment(5);
-	f2_5 << elbow_force_moment(0), elbow_force_moment(1), elbow_force_moment(2);
-	n2_5 << elbow_force_moment(3), elbow_force_moment(4), elbow_force_moment(5);
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
@@ -358,12 +337,8 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	//cout << "shoulder_force_moment:" << shoulder_force_moment << "\n" << "elbow_force_moment" << elbow_force_moment << endl;
 
 	//力矩平衡公式
-	f5_5 = f2_5;
-	n5_5 = n2_5;
-	f4_4 = R54 * f5_5;
-	n4_4 = R54 * n5_5 + p5_4.cross(f4_4);
-	f3_3 = R43 * f4_4 + f1_3;
-	n3_3 = R43 * n4_4 + p4_3.cross(R43 * f4_4) + n1_3;
+	f3_3 = f1_3;
+	n3_3 = n1_3;
 	f2_2 = R32 * f3_3;
 	n2_2 = R32 * n3_3 + p3_2.cross(f2_2);
 	f1_1 = R21 * f2_2;
@@ -380,8 +355,6 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, MatrixBase<D
 	moment[0] = n1_1(2);
 	moment[1] = n2_2(2);
 	moment[2] = n3_3(2);
-	moment[3] = n4_4(2);
-	moment[4] = n5_5(2);
 }
 
 template<typename DerivedA, typename DerivedB>

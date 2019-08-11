@@ -33,6 +33,8 @@ static const int kPlaneMaxY = 601;
 static const int kRagMaxX = 710;
 static const int kRagMaxY = 596;
 
+double ActiveControl::six_dimforce[6]{ 0 };
+
 extern Vector3d AxisDirection[5] {
 	Vector3d(0, 0, 0),
 	Vector3d(0, 0, 0),
@@ -139,45 +141,31 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 	UINT start, end;
 	start = GetTickCount();
 	// 求六维力传感器的偏置
-	//double sum[6]{ 0.0 };
-	//double buf[6]{ 0.0 };
-	//for (int i = 0;i < 10;++i) {
-	//	DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
-	//	for (int j = 0;j < 6;++j) {
-	//		sum[j] += buf[j];
-	//	}
-	//}
-	//for (int i = 0;i < 6;++i) {
-	//	active->six_dimension_offset_[i] = sum[i] / 10;
-	//}
+	double sum[6]{ 0.0 };
+	double buf[6]{ 0.0 };
+	for (int i = 0;i < 10;++i) {
+		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
+		for (int j = 0;j < 6;++j) {
+			sum[j] += buf[j];
+		}
+	}
+	for (int i = 0;i < 6;++i) {
+		active->six_dimension_offset_[i] = sum[i] / 10;
+	}
 
 	//求压力传感器的偏置
-	double two_arm_buf[8] { 0.0 };
-	double two_arm_sum[8] { 0.0 };
+	double two_arm_buf[2] { 0.0 };
+	double two_arm_sum[2] { 0.0 };
 
 	for (int i = 0; i < 10; ++i) {
 		DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_buf);
-		for (int j = 0; j < 8; ++j) {
+		for (int j = 0; j < 2; ++j) {
 			two_arm_sum[j] += two_arm_buf[j];
 		}
 	}
-	for (int i = 0; i < 8; ++i) {
-		active->two_arm_offset[i]= two_arm_sum[i] / 10;
+	for (int i = 0; i < 2; ++i) {
+		active->elbow_offset[i]= two_arm_sum[i] / 10;
 	}
-
-	////将肩肘部合在一起
-	//double two_arm_sum[8]{ 0.0 };
-	//double two_arm_buf[8]{ 0.0 };
-	//for (int i = 0; i < 10; ++i) {
-	//	DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_buf);
-	//	for (int j = 0; j < 8; ++j) {
-	//		two_arm_sum[i] += two_arm_buf[i];
-	//	}
-	//}
-
-	//for (int i = 0; i < 8; ++i) {
-	//	active->two_arm_offset[i] = two_arm_sum[i] / 10;
-	//}
 
 	////求力矩传感器偏置
 	//double torque_sum_offset[2]{ 0 };
@@ -216,7 +204,7 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 			}
 		}
 		//六维力线程
-		//active->Step();
+		active->Step();
 		//力矩传感器线程
 		//active->TorqueStep();
 		//压力传感器线程
@@ -267,7 +255,6 @@ void ActiveControl::Step() {
 	torque_data[0].push_back(detect.shoulder_torque);
 	torque_data[1].push_back(detect.elbow_torque);
 
-
 	// 求减去偏置之后的六维力，这里对z轴的力和力矩做了一个反向
 	for (int i = 0; i < 6; ++i) {
 		sub_bias[i] = readings[i] - six_dimension_offset_[i];
@@ -275,17 +262,21 @@ void ActiveControl::Step() {
 	sub_bias[2] = -sub_bias[2];
 	sub_bias[5] = -sub_bias[5];
 
+	for (int i = 0; i < 6; ++i) {
+		six_dimforce[i] = sub_bias[i];
+	}
+
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", sub_bias[0], sub_bias[1], sub_bias[2], sub_bias[3], sub_bias[4], sub_bias[5]);
 
-	Raw2Trans(sub_bias, distData);
-	Trans2Filter(distData, filtedData);
-	FiltedVolt2Vel(filtedData);
+	//Raw2Trans(sub_bias, distData);
+	//Trans2Filter(distData, filtedData);
+	//FiltedVolt2Vel(filtedData);
 
-	if (is_moving_) {
-		 ActMove();
-	}
+	//if (is_moving_) {
+	//	 ActMove();
+	//}
 
 	//qDebug()<<"readings is "<<filtedData[0]<<" "<<filtedData[1]<<" "<<filtedData[2]<<" "<<filtedData[3]<<" "<<filtedData[4]<<" "<<filtedData[5];
 }
@@ -350,35 +341,24 @@ void ActiveControl::TorqueStep() {
 }
 
 void ActiveControl::PressureStep() {
-	double shoulder_data[4] = { 0 };
-	double elbow_data[4] = { 0 };
-	double shoulder_suboffset[4] = { 0 };
-	double elbow_suboffset[4] = { 0 };
-	double shoulder_smooth[4] = { 0 };
+	double elbow_suboffset[2] = { 0 };
 	double elbow_smooth[4] = { 0 };
-	double two_arm_data[8] = { 0 };
-	double two_arm_suboffset[8] = { 0 };
-	double force_vector[4] = { 0 };
-	double vel[2] = { 0 };
+	double elbow_pressure_data[2] = { 0 };
+	double force_vector = 0;
+	double vel = 0;
 
-	DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_data);
+	DataAcquisition::GetInstance().AcquisiteTensionData(elbow_pressure_data);
 
 
 
 	//减偏置
-	for (int i = 0; i < 8; ++i) {
-		two_arm_suboffset[i] = two_arm_data[i] - two_arm_offset[i];
+	for (int i = 0; i < 2; ++i) {
+		elbow_suboffset[i] = elbow_pressure_data[i] - elbow_offset[i];
 	}
 
-	//因第4通道的值相比其它通道明显要小很多，所以在这里将其放大，参考通道3，放大5倍
-	two_arm_suboffset[3] = 5 * two_arm_suboffset[3];
-
-	//因为滤波会用到之前的数据，所以在这里还是得把数据分开，同时把单位从电压转换成力
-	for (int i = 0; i < 4; ++i) {
-		shoulder_suboffset[i] = 20 * two_arm_suboffset[i];
-	}
-	for (int j = 0; j < 4; ++j) {
-		elbow_suboffset[j] = 10 * two_arm_suboffset[j + 4];
+	//把单位从电压转换成力
+	for (int j = 0; j < 2; ++j) {
+		elbow_suboffset[j] = 10 * elbow_suboffset[j];
 	}
 
 	//AllocConsole();
@@ -386,24 +366,33 @@ void ActiveControl::PressureStep() {
 	//printf("two_arm_data1:%lf    two_arm_data2:%lf    two_arm_data3:%lf	   two_arm_data4:%lf   \n", shoulder_suboffset[0], shoulder_suboffset[1], shoulder_suboffset[2], shoulder_suboffset[3]);
 	//printf("two_arm_data5:%lf    two_arm_data6:%lf    two_arm_data7:%lf	   two_arm_data8:%lf   \n", elbow_suboffset[0], elbow_suboffset[1], elbow_suboffset[2], elbow_suboffset[3]);
 
-
-	//这里将数据滤波后方向出了问题，所以先不滤波
-	//Trans2Filter2(shoulder_suboffset, shoulder_smooth);
-	//Trans2Filter2(elbow_suboffset, elbow_smooth);
-	//Trans2Filter2(two_arm_suboffset, two_arm_smooth);
+	//进行二阶巴特沃兹滤波
+	Trans2FilterForPressure(elbow_suboffset, elbow_smooth);
 
 	//将传感器数据转成力矢量
-	SensorDataToForceVector(shoulder_suboffset, elbow_suboffset, force_vector);
+	//SensorDataToForceVector(shoulder_suboffset, elbow_suboffset, force_vector);
+	force_vector = elbow_smooth[0] - elbow_smooth[1];
 
-	AllocConsole();
-	freopen("CONOUT$", "w", stdout);
-	printf("force_vector1:%lf    force_vector2:%lf    force_vector3:%lf	   force_vector4:%lf   \n", force_vector[0], force_vector[1], force_vector[2], force_vector[3]);
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//printf("force_vector1:%lf    force_vector2:%lf    force_vector3:%lf	   force_vector4:%lf   \n", force_vector[0], force_vector[1], force_vector[2], force_vector[3]);
 
-	//将压力转化成关节力矩
+	//这里是把六维力计算成力矩，然后输出肩部的力矩值，
+	//所以压力数据force_vector的输入这里其实是没用的，但是为了后面全压力传感器方案铺路，还是选择把它留下
 	MomentCalculation(force_vector, vel);
 
-	Ud_Shoul = vel[0];
-	Ud_Arm = vel[1];
+	if (Ud_Shoul > 0) {
+		Ud_Shoul = 3 * vel;
+	}
+	else {
+		Ud_Shoul = 2 * vel;
+	}
+	if (Ud_Arm > 0) {
+		Ud_Arm = 3 * force_vector;
+	}
+	else {
+		Ud_Arm = 2 * force_vector;
+	}
 
 	//这里遇到了速度输入为0时会被忽略掉的问题，所以先把这里注释掉
 	//if ((Ud_Arm > -0.5) && (Ud_Arm < 0.5)) {
@@ -513,16 +502,16 @@ void ActiveControl::Trans2Filter(double TransData[6], double FiltedData[6]) {
 	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", FiltedData[3], FiltedData[4], FiltedData[5], FiltedData[0], FiltedData[1], FiltedData[2]);
 }
 
-void ActiveControl::Trans2Filter2(double TransData[4], double FiltedData[4]) {
-	double Wc = 5;
+void ActiveControl::Trans2FilterForPressure(double TransData[2], double FiltedData[2]) {
+	double Wc = 3;
 	double Ts = 0.1;
 	static int i = 0;
-	static double Last_Buffer[4] = { 0 };
-	static double Last2_Buffer[4] = { 0 };
-	static double Force_Buffer[4] = { 0 };
-	static double Last_FT[4] = { 0 };
-	static double Last2_FT[4] = { 0 };
-	for (int m = 0; m < 4; m++)
+	static double Last_Buffer[2] = { 0 };
+	static double Last2_Buffer[2] = { 0 };
+	static double Force_Buffer[2] = { 0 };
+	static double Last_FT[2] = { 0 };
+	static double Last2_FT[2] = { 0 };
+	for (int m = 0; m < 2; m++)
 	{
 		if (i == 0)
 		{
@@ -577,54 +566,44 @@ void ActiveControl::SensorDataToForceVector(double shouldersensordata[4], double
 	ForceVector[3] = elbowdataZ;
 }
 
-void ActiveControl::MomentCalculation(double ForceVector[4], double vel[2]) {
+void ActiveControl::MomentCalculation(double ForceVector, double& vel) {
 	MatrixXd m_vel(2, 1);
 	MatrixXd pos(2, 1);
 
 	VectorXd shoulder_force_moment_vector(6);
-	VectorXd elbow_force_moment_vector(6);
 	VectorXd six_dimensional_force_simulation(6);
 	VectorXd v_moment(5);
 
 	double angle[2];
-	double moment[5];
+	double moment[3];
 
 	ControlCard::GetInstance().GetEncoderData(angle);
 
 	pos(0, 0) = angle[0];
 	pos(1, 0) = angle[1];
 
-	shoulder_force_moment_vector(0) = 0;
-	shoulder_force_moment_vector(1) = ForceVector[0];
-	shoulder_force_moment_vector(2) = ForceVector[1];
-	shoulder_force_moment_vector(3) = 0;
-	shoulder_force_moment_vector(4) = 0;
-	shoulder_force_moment_vector(5) = 0;
-	elbow_force_moment_vector(0) = 0;
-	elbow_force_moment_vector(1) = ForceVector[2];
-	elbow_force_moment_vector(2) = ForceVector[3];
-	elbow_force_moment_vector(3) = 0;
-	elbow_force_moment_vector(4) = 0;
-	elbow_force_moment_vector(5) = 0;
+	six_dimensional_force_simulation(0) = six_dimforce[0];
+	six_dimensional_force_simulation(1) = six_dimforce[1];
+	six_dimensional_force_simulation(2) = six_dimforce[2];
+	six_dimensional_force_simulation(3) = six_dimforce[3];
+	six_dimensional_force_simulation(4) = six_dimforce[4];
+	six_dimensional_force_simulation(5) = six_dimforce[5];
 
-	MomentBalance(shoulder_force_moment_vector, elbow_force_moment_vector, angle, moment);
+	MomentBalance(six_dimensional_force_simulation, angle, moment);
 
-	for (int i = 0; i < 5; ++i) {
-		v_moment(i) = moment[i];
-	}
+	//for (int i = 0; i < 5; ++i) {
+	//	v_moment(i) = moment[i];
+	//}
 
-	shoulder_moment = moment[0];
-	elbow_moment = moment[2];
-
-	AdmittanceControl(v_moment, m_vel);
+	////关节空间投影到驱动空间
+	//AdmittanceControl(v_moment, m_vel);
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//printf("moment1:%lf      moment2:%lf      moment3:%lf      moment4:%lf      moment5:%lf  \n", moment[0], moment[1], moment[2], moment[3], moment[4]);
 
 
-	vel[0] = m_vel(0);
-	vel[1] = m_vel(1);
+	vel = moment[0];
 }
 
 void ActiveControl::FiltedVolt2Vel(double FiltedData[6]) {
