@@ -26,7 +26,7 @@ const double d5 = 0.174;
 const double r5 = 0.074;
 const double dy_2 = 0.087;
 const double dz_2 = 0.188;
-//double sixdim_shoulder = 0.03;
+const double sixdim_shoulder = 0.03;
 
 const double InitAngle[5] = {
 	0, 0, 0, 0, 15
@@ -319,6 +319,7 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motor
 		sixdim_rotation, to_zero,
 		Sixdim_To_Coordinate3*sixdim_rotation, sixdim_rotation;
 
+	Vector3d f3_3;
 	Vector3d n3_3;
 	Vector3d f2_2;
 	Vector3d n2_2;
