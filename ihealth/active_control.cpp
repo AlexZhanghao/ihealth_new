@@ -762,8 +762,8 @@ void ActiveControl::SixDimForceMomentCalculation(double ForceVector[6], double v
 	for (int i = 0; i < 3; ++i) {
 		v_moment(i) = moment[i];
 	}
-	v_moment(3) = 0;
-	v_moment(4) = 0;
+	v_moment(3) = 1.12*v_moment(2);
+	v_moment(4) = 1.48*v_moment(2);
 
 	AdmittanceControl(v_moment, v_vel);
 
