@@ -14,6 +14,8 @@ public:
     void StopMove();
 	// 采集一次六维力的数据，计算出电机速度，然后指示电机以这个速度运动.这是一轮循环
 	void Step();
+	//六维力控制肩肘两个关节的线程
+	void SixDimForceStep();
 	//使用力矩传感器的循环
 	void TorqueStep();
 	//使用压力传感器的循环
@@ -41,6 +43,8 @@ public:
 public:
 	bool is_exit_thread_;
 	bool is_moving_;
+	//压力传感器是否使能，注意这里并不只是单纯的将它关闭，而是切换到了纯六维力模式
+	bool m_pressure_sensor_enable;
 	double six_dimension_offset_[6];
 	double elbow_offset[2];
 	double torque_offset[2];
@@ -57,6 +61,8 @@ private:
 	void Trans2FilterForPressure(double TransData[2], double FiltedData[2]);
 	void FiltedVolt2Vel(double FiltedData[6]);
 	void MomentCalculation(double ForceVector, double& vel);
+	//只用六维力情况下的力矩计算
+	void SixDimForceMomentCalculation(double ForceVector[6], double vel[2]);
 	//将传感器的数据处理成两个二维矢量，由于矢量只在两个方向上有作用，故需输出4个数据。这里要先知道传感器的安装位置
 	void SensorDataToForceVector(double shouldersensordata[4], double elbowsensordata[4],double ForceVector[4]);
 
@@ -70,6 +76,7 @@ private:
 	double shoulder_angle_max_;
 	double elbow_angle_max_;
 	static double six_dimforce[6];
+	double joint_angle[2];
 };
 
 #endif // ACTIVECONTROL_H

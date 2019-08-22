@@ -13,7 +13,7 @@
 #define ShoulderTorqueLimit 100.0
 #define ElbowTorqueLimit 100.0
 
-#define PullLimit 4.0 /*实际电压需要除以2*/
+#define PullLimit 3.0 /*实际电压需要除以2*/
 
 double rawTorqueData[5]={0};
 double raw_pull_data[20] = { 0 };
@@ -28,7 +28,7 @@ double boundaryDetection::elbow_torque = 0.0;
 HHOOK   hHook;
 LRESULT   __stdcall   CBTHookProc(long   nCode, WPARAM   wParam, LPARAM   lParam) {
 	if (nCode == HCBT_ACTIVATE) {
-		SetDlgItemText((HWND)wParam, IDOK, L"复位");
+		SetDlgItemText((HWND)wParam, IDOK, L"停止");
 		UnhookWindowsHookEx(hHook);
 	}
 	return   0;
@@ -294,12 +294,11 @@ void boundaryDetection::check() {
 	double abs_shoulder_backward_pull = fabs(DataAcquisition::GetInstance().ShoulderBackwardPull());
 	double abs_elbow_forward_pull = fabs(DataAcquisition::GetInstance().ElbowForwardPull());
 	double abs_elbow_backward_pull = fabs(DataAcquisition::GetInstance().ElbowBackwardPull());
-	//printf("shoulder:%lf    %lf \n elbow:%lf     %lf\n", abs_shoulder_forward_pull, abs_shoulder_backward_pull,abs_elbow_forward_pull,abs_elbow_backward_pull);
 	if (abs_shoulder_forward_pull > PullLimit || abs_shoulder_backward_pull > PullLimit ||
 		abs_elbow_forward_pull > PullLimit || abs_elbow_backward_pull > PullLimit) {
 		// 同样需要先把动作暂停下来
 		::PostMessage(m_hWnd, PullForceError, NULL, NULL);
-		wstring msg(_T("钢丝绳拉力超出许可范围，请检查异常并联系制造商,F1="));
+		wstring msg(_T("钢丝绳拉力超出许可范围，请检查异常,F1="));
 		msg += to_wstring(abs_shoulder_forward_pull);
 		msg += (_T(", F2="));
 		msg += to_wstring(abs_shoulder_backward_pull);
@@ -312,9 +311,13 @@ void boundaryDetection::check() {
 		hHook = SetWindowsHookEx(WH_CBT, (HOOKPROC)CBTHookProc, NULL, GetCurrentThreadId());
 		int ret = ::MessageBox(m_hWnd, msg.c_str(), _T("拉力保护"), MB_OK | MB_ICONEXCLAMATION);
 		if (ret == IDOK) {
-			ControlCard::GetInstance().ResetPosition();
+			//ControlCard::GetInstance().ResetPosition();
+			m_pRobot->ActiveStopMove();
 		}
 	}
+//	AllocConsole();
+//	freopen("CONOUT$", "w", stdout);
+//	printf("shoulder:%lf    %lf \n elbow:%lf     %lf\n", abs_shoulder_forward_pull, abs_shoulder_backward_pull,abs_elbow_forward_pull,abs_elbow_backward_pull);
 }
 
 

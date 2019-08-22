@@ -49,11 +49,14 @@ extern Vector3d AxisPosition[5] {
 	Vector3d(0, 0, 0),
 	Vector3d(0, 0, 0),
 };
+Matrix3d RF13;
+Matrix3d sixdim_rotation;
 
 ActiveControl::ActiveControl() {
 	move_thread_handle_ = 0;
 	is_exit_thread_ = false;
 	is_moving_ = false;
+	m_pressure_sensor_enable = true;
 	LoadParamFromFile();
 }
 
@@ -64,15 +67,28 @@ void ActiveControl::LoadParamFromFile() {
 	stringstream ss;
 	string item;
 
-	// rotate_matrix_
-	s = cfg.get<string>("rotate_matrix");
+	// RF13
+	s = cfg.get<string>("RF13");
+	ss.clear();
+	ss.str(s);
+	vector<double> rf13;
+	while (getline(ss, item, ',')) {
+		rf13.push_back(stod(item));
+	}
+	RF13 <<
+		rf13[0], rf13[1], rf13[2],
+		rf13[3], rf13[4], rf13[5],
+		rf13[6], rf13[7], rf13[8];
+
+	// sixdim_rotation
+	s = cfg.get<string>("sixdim_rotation");
 	ss.clear();
 	ss.str(s);
 	vector<int> r;
 	while (getline(ss, item, ',')) {
 		r.push_back(stoi(item));
 	}
-	rotate_matrix_ <<
+	sixdim_rotation <<
 		r[0], r[1], r[2],
 		r[3], r[4], r[5],
 		r[6], r[7], r[8];
@@ -124,19 +140,19 @@ void ActiveControl::LoadParamFromFile() {
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
-	//cout << rotate_matrix_ << endl;
+	//cout << RF13 << endl;
+	//cout << sixdim_rotation << endl;
 	//cout << force_position_ << endl;
 	//cout << is_left << endl;
 	//cout << AxisPosition << endl;
 	//cout << AxisDirection << endl;
-
 }
 
 ActiveControl:: ~ActiveControl() {
 	//DataAcquisition::GetInstance().StopTask();
 }
 
-unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
+unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 	ActiveControl *active = (ActiveControl*)pParam;
 	UINT start, end;
 	start = GetTickCount();
@@ -183,8 +199,8 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 	//active->torque_offset[0] = torque_sum_offset[0] / 10;
 	//active->torque_offset[1] = torque_sum_offset[1] / 10;
 
-	DataAcquisition::GetInstance().StopTask();
-	DataAcquisition::GetInstance().StartTask();
+	DataAcquisition::GetInstance().StopSixDemTask();
+	DataAcquisition::GetInstance().StartSixDemTask();
 	//DataAcquisition::GetInstance().StopTorqueTask();
 	//DataAcquisition::GetInstance().StartTorqueTask();
 
@@ -213,12 +229,64 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 
 	//active->MomentExport();
 	//active->TorqueExport();
+	//std::cout << "ActiveMoveThreadWithPressure Thread ended." << std::endl;
+	return 0;
+}
+
+unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
+	ActiveControl *active = (ActiveControl*)pParam;
+	UINT start, end;
+	start = GetTickCount();
+	// 求六维力传感器的偏置
+	double sum[6]{ 0.0 };
+	double buf[6]{ 0.0 };
+	for (int i = 0; i < 10; ++i) {
+		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
+		for (int j = 0; j < 6; ++j) {
+			sum[j] += buf[j];
+		}
+	}
+	for (int i = 0; i < 6; ++i) {
+		active->six_dimension_offset_[i] = sum[i] / 10;
+	}
+
+	DataAcquisition::GetInstance().StopSixDemTask();
+	DataAcquisition::GetInstance().StartSixDemTask();
+
+	while (true) {
+		if (active->is_exit_thread_) {
+			break;
+		}
+
+		// 每隔一定时间进行一次循环，这个循环时间应该是可调的。
+		while (true) {
+			end = GetTickCount();
+			if (end - start >= active->cycle_time_in_second_ * 1000) {
+				start = end;
+				break;
+			}
+			else {
+				SwitchToThread();
+			}
+		}
+		//六维力线程
+		active->SixDimForceStep();
+	}
+
+	//active->MomentExport();
+	//active->TorqueExport();
 	//std::cout << "ActiveMoveThread Thread ended." << std::endl;
 	return 0;
 }
+
 void ActiveControl::MoveInNewThread() {
 	is_exit_thread_ = false;
-	move_thread_handle_ = (HANDLE)_beginthreadex(NULL, 0, ActiveMoveThread, this, 0, NULL);
+	if (m_pressure_sensor_enable == true) {
+		move_thread_handle_ = (HANDLE)_beginthreadex(NULL, 0, ActiveMoveThreadWithPressure, this, 0, NULL);
+	}
+	else {
+		move_thread_handle_ = (HANDLE)_beginthreadex(NULL, 0, ActiveMoveThread, this, 0, NULL);
+	}
 }
 void ActiveControl::ExitMoveThread() {
 	is_exit_thread_ = true;
@@ -262,10 +330,14 @@ void ActiveControl::Step() {
 	sub_bias[2] = -sub_bias[2];
 	sub_bias[5] = -sub_bias[5];
 
+	Trans2Filter(sub_bias, filtedData);
+
+
 	for (int i = 0; i < 6; ++i) {
-		six_dimforce[i] = sub_bias[i];
+		six_dimforce[i] = filtedData[i];
 	}
 
+	//Sleep(100);
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", sub_bias[0], sub_bias[1], sub_bias[2], sub_bias[3], sub_bias[4], sub_bias[5]);
@@ -279,6 +351,52 @@ void ActiveControl::Step() {
 	//}
 
 	//qDebug()<<"readings is "<<filtedData[0]<<" "<<filtedData[1]<<" "<<filtedData[2]<<" "<<filtedData[3]<<" "<<filtedData[4]<<" "<<filtedData[5];
+}
+
+void ActiveControl::SixDimForceStep() {
+	double readings[6] = { 0 };
+	double distData[6] = { 0 };
+	double filtedData[6] = { 0 };
+	double bias[6] = { 0 };
+	double sub_bias[6] = { 0 };
+	double force_vector = 0;
+	double vel[2] = { 0 };
+
+	DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
+
+	torque_data[0].push_back(detect.shoulder_torque);
+	torque_data[1].push_back(detect.elbow_torque);
+
+	// 求减去偏置之后的六维力，这里对z轴的力和力矩做了一个反向
+	for (int i = 0; i < 6; ++i) {
+		sub_bias[i] = readings[i] - six_dimension_offset_[i];
+	}
+	sub_bias[2] = -sub_bias[2];
+	sub_bias[5] = -sub_bias[5];
+
+	Trans2Filter(sub_bias, filtedData);
+
+	//这里是把六维力计算成力矩，然后输出肩部的力矩值，
+    //所以压力数据force_vector的输入这里其实是没用的，但是为了后面全压力传感器方案铺路，还是选择把它留下
+	SixDimForceMomentCalculation(filtedData, vel);
+
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", sub_bias[0], sub_bias[1], sub_bias[2], sub_bias[3], sub_bias[4], sub_bias[5]);
+
+
+	if (joint_angle[0] < 10) {
+		Ud_Shoul = -3 * six_dimforce[0];
+		Ud_Arm = -2 * six_dimforce[0];
+	}
+	else {
+		Ud_Shoul = 4 * vel[0];
+		Ud_Arm = 3 * vel[1];
+	}
+
+	if (is_moving_) {
+		 ActMove();
+	}
 }
 
 void ActiveControl::TorqueStep() {
@@ -375,17 +493,23 @@ void ActiveControl::PressureStep() {
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
-	//printf("force_vector1:%lf    force_vector2:%lf    force_vector3:%lf	   force_vector4:%lf   \n", force_vector[0], force_vector[1], force_vector[2], force_vector[3]);
+	//printf("force_vector:%lf  \n", force_vector);
+    //printf("angle1:%lf     angle2:%lf \n", joint_angle[0], joint_angle[1]);
 
 	//这里是把六维力计算成力矩，然后输出肩部的力矩值，
 	//所以压力数据force_vector的输入这里其实是没用的，但是为了后面全压力传感器方案铺路，还是选择把它留下
 	MomentCalculation(force_vector, vel);
 
-	if (Ud_Shoul > 0) {
-		Ud_Shoul = 3 * vel;
+	if (joint_angle[0] < 10) {
+		Ud_Shoul = -3*six_dimforce[0];
 	}
 	else {
-		Ud_Shoul = 2 * vel;
+		//if (Ud_Shoul > 0) {
+			Ud_Shoul = 4 * vel;
+		//}
+		//else {
+		//	Ud_Shoul = 3 * vel;
+		//}
 	}
 	if (Ud_Arm > 0) {
 		Ud_Arm = 3 * force_vector;
@@ -401,15 +525,15 @@ void ActiveControl::PressureStep() {
 	//if ((Ud_Shoul > -0.5) && (Ud_Shoul < 0.5)) {
 	//	Ud_Shoul = 0;
 	//}
-	if (Ud_Arm > 3) {
-		Ud_Arm = 3;
-	} else if (Ud_Arm < -3) {
-		Ud_Arm = -3;
+	if (Ud_Arm > 4) {
+		Ud_Arm = 4;
+	} else if (Ud_Arm < -4) {
+		Ud_Arm = -4;
 	}
-	if (Ud_Shoul > 3) {
-		Ud_Shoul = 3;
-	} else if (Ud_Shoul < -3) {
-		Ud_Shoul = -3;
+	if (Ud_Shoul > 5) {
+		Ud_Shoul = 5;
+	} else if (Ud_Shoul < -5) {
+		Ud_Shoul = -5;
 	}
 
 	//AllocConsole();
@@ -419,6 +543,8 @@ void ActiveControl::PressureStep() {
 	if (is_moving_) {
 		ActMove();
 	}
+
+	//Sleep(100);
 }
 
 void ActiveControl::Raw2Trans(double RAWData[6], double DistData[6]) {
@@ -581,6 +707,8 @@ void ActiveControl::MomentCalculation(double ForceVector, double& vel) {
 
 	pos(0, 0) = angle[0];
 	pos(1, 0) = angle[1];
+	joint_angle[0] = angle[0];
+	joint_angle[1] = angle[1];
 
 	six_dimensional_force_simulation(0) = six_dimforce[0];
 	six_dimensional_force_simulation(1) = six_dimforce[1];
@@ -601,9 +729,46 @@ void ActiveControl::MomentCalculation(double ForceVector, double& vel) {
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//printf("moment1:%lf      moment2:%lf      moment3:%lf      moment4:%lf      moment5:%lf  \n", moment[0], moment[1], moment[2], moment[3], moment[4]);
-
+	//printf("angle1:%lf     angle2:%lf \n", joint_angle[0], joint_angle[1]);
 
 	vel = moment[0];
+}
+
+void ActiveControl::SixDimForceMomentCalculation(double ForceVector[6], double vel[2]) {
+	VectorXd six_dimensional_force_simulation(6);
+	VectorXd v_moment(5);
+	Vector2d v_vel;
+	MatrixXd pos(2, 1);
+
+	double angle[2];
+	double moment[3];
+
+	ControlCard::GetInstance().GetEncoderData(angle);
+
+	pos(0, 0) = angle[0];
+	pos(1, 0) = angle[1];
+	joint_angle[0] = angle[0];
+	joint_angle[1] = angle[1];
+
+	six_dimensional_force_simulation(0) = ForceVector[0];
+	six_dimensional_force_simulation(1) = ForceVector[1];
+	six_dimensional_force_simulation(2) = ForceVector[2];
+	six_dimensional_force_simulation(3) = ForceVector[3];
+	six_dimensional_force_simulation(4) = ForceVector[4];
+	six_dimensional_force_simulation(5) = ForceVector[5];
+
+	MomentBalance(six_dimensional_force_simulation, angle, moment);
+
+	for (int i = 0; i < 3; ++i) {
+		v_moment(i) = moment[i];
+	}
+	v_moment(3) = 0;
+	v_moment(4) = 0;
+
+	AdmittanceControl(v_moment, v_vel);
+
+	vel[0] = v_vel(0);
+	vel[1] = v_vel(1);
 }
 
 void ActiveControl::FiltedVolt2Vel(double FiltedData[6]) {

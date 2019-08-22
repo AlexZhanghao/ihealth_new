@@ -540,6 +540,10 @@ void RFMainWindow::BindManagerPatientPageEvent()
 	// 握力传感器开关的响应函数绑定
 	CCheckBoxUI* grip_strength_enable = static_cast<CCheckBoxUI*>(m_pm.FindControl(_T("grip_strength_enable")));
 	grip_strength_enable->OnNotify += MakeDelegate(this, &RFMainWindow::OnGripStrengthClicked);
+
+	// 压力传感器开关的响应函数绑定
+	CCheckBoxUI* pressure_sensor_enable = static_cast<CCheckBoxUI*>(m_pm.FindControl(_T("pressure_sensor_enable")));
+	pressure_sensor_enable->OnNotify += MakeDelegate(this, &RFMainWindow::OnPressureSwitchChicked);
 }
 
 LRESULT RFMainWindow::OnCommunicate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
@@ -1294,6 +1298,8 @@ LRESULT RFMainWindow::OnPullForceError(UINT uMsg, WPARAM wParam, LPARAM lParam) 
 	// 把被动运动的button的状态改变过来
 	CCheckBoxUI* pCheckBox2 = static_cast<CCheckBoxUI*>(m_pm.FindControl(_T("passive_play")));
 	pCheckBox2->SetCheck(false);
+	//将复位开关关闭，这样即使在复位时也能停止
+	ControlCard::GetInstance().is_reset_stop = true;
 	return true;
 }
 
@@ -3325,6 +3331,22 @@ bool RFMainWindow::OnGripStrengthClicked(void *pParam) {
 	}
 	return true;
 
+}
+
+bool RFMainWindow::OnPressureSwitchChicked(void *pParam) {
+	TNotifyUI *pMsg = static_cast<TNotifyUI*>(pParam);
+	if (pMsg->sType != _T("click"))
+		return true;
+
+	CCheckBoxUI *pCheckBox = static_cast<CCheckBoxUI*>(pMsg->pSender);
+	if (!pCheckBox->GetCheck()) {
+		m_robot.SetPressureSensorOff();
+	}
+	else {
+		// 点击这里之后，图标变成ON，这个时候压力传感器是启用的
+		m_robot.SetPressureSensorOn();
+	}
+	return true;
 }
 
 bool RFMainWindow::OnEvaluation1(void *pParam)

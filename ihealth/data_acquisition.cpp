@@ -10,8 +10,8 @@ using namespace std;
 const char *DataAcquisition::kTorqueChannel = "dev2/ai4:5";
 const char *DataAcquisition::kPullSensorChannel = "dev2/ai0:3";
 const char *DataAcquisition::kGripChannel = "dev2/ai6";
-const char *DataAcquisition::kSixDimensionForceChannel = "dev3/ai0:5";
-const char *DataAcquisition::kPressureForceChannel= "Dev3/ai1:8";
+const char *DataAcquisition::kSixDimensionForceChannel = "dev1/ai0:5";
+const char *DataAcquisition::kPressureForceChannel= "Dev3/ai1:2";
 const double DataAcquisition::kRawToReal = 2.0;
 
 Eigen::Matrix<double, 6, 6> DataAcquisition::kTransformMatrix = MatrixXd::Zero(6, 6);

@@ -137,6 +137,13 @@ void Robot::SetDamping(float FC/* =0.1 */) {
 	activeCtrl->SetDamping(FC);
 }
 
+void Robot::SetPressureSensorOn() {
+	activeCtrl->m_pressure_sensor_enable = true;
+}
+
+void Robot::SetPressureSensorOff() {
+	activeCtrl->m_pressure_sensor_enable = false;
+}
 
 void Robot::setEyeVel(double factor) {
 	eyeModeCtl->setVel(factor);

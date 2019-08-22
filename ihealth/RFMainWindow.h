@@ -213,6 +213,7 @@ public:
 	bool		OnGame4Recovery(void *pParam);
 	bool		OnMusicItemDelete(void *pParam);
 	bool        OnGripStrengthClicked(void *pParam);
+	bool        OnPressureSwitchChicked(void *pParam);
 
 	static int	OnSearchOK(EventArg *pArg);
 	static int  OnFilterOK(EventArg* pArg);

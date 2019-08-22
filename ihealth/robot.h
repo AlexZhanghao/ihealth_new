@@ -50,7 +50,9 @@ public:
 	void	GetPlanePos(short w, short h, double XY[2]);
 	// 擦窗户游戏里面，获取窗户的XY
 	void	CalculateRagPos(double XY[2]);
-	void	SetDamping(float FC=0.1);	
+	void	SetDamping(float FC=0.1);
+	void    SetPressureSensorOn();
+	void    SetPressureSensorOff();
 
 	/************************************************************************/
 	/*                           sEMG模式接口                                */
