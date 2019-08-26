@@ -29,6 +29,8 @@ public:
 	// 设置关节运动范围
 	void SetSAAMax(double saa);
 	void SetSFEMax(double sfe);
+	void SetArmSensitivity(double arm_senitivity);
+	void SetShoulderSensitivity(double shoulder_senitivity);
 	//将力矩由主动关节换算到所有关节
 	void ActiveTorqueToAllTorque(double torque[2], double alltorque[5]);
 
@@ -77,6 +79,8 @@ private:
 	double elbow_angle_max_;
 	static double six_dimforce[6];
 	double joint_angle[2];
+	static double elbow_Sensitivity_;
+	static double shoulder_Sensitivity_;
 };
 
 #endif // ACTIVECONTROL_H

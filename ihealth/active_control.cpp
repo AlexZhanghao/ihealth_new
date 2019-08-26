@@ -34,6 +34,8 @@ static const int kRagMaxX = 710;
 static const int kRagMaxY = 596;
 
 double ActiveControl::six_dimforce[6]{ 0 };
+double ActiveControl::elbow_Sensitivity_ = 0;
+double ActiveControl::shoulder_Sensitivity_ = 0;
 
 extern Vector3d AxisDirection[5] {
 	Vector3d(0, 0, 0),
@@ -54,6 +56,8 @@ Matrix3d sixdim_rotation;
 
 ActiveControl::ActiveControl() {
 	move_thread_handle_ = 0;
+	elbow_Sensitivity_ = 2;
+	shoulder_Sensitivity_ = 3;
 	is_exit_thread_ = false;
 	is_moving_ = false;
 	m_pressure_sensor_enable = true;
@@ -383,16 +387,12 @@ void ActiveControl::SixDimForceStep() {
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", sub_bias[0], sub_bias[1], sub_bias[2], sub_bias[3], sub_bias[4], sub_bias[5]);
+	//printf("vel1:%lf      vel2:%lf \n", vel[0], vel[1]);
 
+	Ud_Shoul = shoulder_Sensitivity_ * vel[0];
+	Ud_Arm = shoulder_Sensitivity_ * vel[1];
 
-	if (joint_angle[0] < 10) {
-		Ud_Shoul = -3 * six_dimforce[0];
-		Ud_Arm = -2 * six_dimforce[0];
-	}
-	else {
-		Ud_Shoul = 4 * vel[0];
-		Ud_Arm = 3 * vel[1];
-	}
+	//printf("shoulderSensitivity:%lf\n", shoulder_Sensitivity_);
 
 	if (is_moving_) {
 		 ActMove();
@@ -500,22 +500,29 @@ void ActiveControl::PressureStep() {
 	//所以压力数据force_vector的输入这里其实是没用的，但是为了后面全压力传感器方案铺路，还是选择把它留下
 	MomentCalculation(force_vector, vel);
 
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//std::cout<< " the elbow sensitivity : " <<elbow_Sensitivity_<<" shoulder sensitivity :"<<shoulder_Sensitivity_<<std::endl;
+
+	double shoulder_small_sensitivity = 3 * shoulder_Sensitivity_ / 4;
+	double back_elbow_sensitivity = 2 * elbow_Sensitivity_ / 3;
+
 	if (joint_angle[0] < 10) {
-		Ud_Shoul = -3*six_dimforce[0];
+		Ud_Shoul = -shoulder_small_sensitivity * six_dimforce[0];
 	}
 	else {
 		//if (Ud_Shoul > 0) {
-			Ud_Shoul = 4 * vel;
+			Ud_Shoul = shoulder_Sensitivity_ * vel;
 		//}
 		//else {
 		//	Ud_Shoul = 3 * vel;
 		//}
 	}
 	if (Ud_Arm > 0) {
-		Ud_Arm = 3 * force_vector;
+		Ud_Arm = elbow_Sensitivity_ * force_vector;
 	}
 	else {
-		Ud_Arm = 2 * force_vector;
+		Ud_Arm = back_elbow_sensitivity * force_vector;
 	}
 
 	//这里遇到了速度输入为0时会被忽略掉的问题，所以先把这里注释掉
@@ -539,6 +546,7 @@ void ActiveControl::PressureStep() {
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//cout << "Ud_Shoul:" << Ud_Shoul << "     " << "Ud_Arm:" << Ud_Arm << "\n" << endl;
+	//printf("shoulder_Sensitivity_:%lf  \n", shoulder_Sensitivity_);
 
 	if (is_moving_) {
 		ActMove();
@@ -767,6 +775,11 @@ void ActiveControl::SixDimForceMomentCalculation(double ForceVector[6], double v
 
 	AdmittanceControl(v_moment, v_vel);
 
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//printf("v_moment1:%lf    v_moment2:%lf    v_moment3:%lf     v_moment4:%lf    v_moment5:%lf \n", v_moment(0), v_moment(1), v_moment(2), v_moment(3), v_moment(4));
+	//printf("v_vel1: %lf     v_vel2: %lf\n", v_vel(0), v_vel(1));
+
 	vel[0] = v_vel(0);
 	vel[1] = v_vel(1);
 }
@@ -924,6 +937,24 @@ void ActiveControl::SetSAAMax(double saa) {
 
 void ActiveControl::SetSFEMax(double sfe) {
 	elbow_angle_max_ = sfe;
+}
+
+void ActiveControl::SetArmSensitivity(double arm_senitivity) {
+	if (arm_senitivity > 0.1) {
+		elbow_Sensitivity_ = arm_senitivity;
+	}
+	else {
+		elbow_Sensitivity_ = 2;
+	}
+}
+
+void ActiveControl::SetShoulderSensitivity(double shoulder_senitivity) {
+	if (shoulder_senitivity > 0.1) {
+		shoulder_Sensitivity_ = shoulder_senitivity;
+	}
+	else {
+		shoulder_Sensitivity_ = 3;
+	}
 }
 
 void ActiveControl::MomentExport() {
