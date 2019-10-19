@@ -111,12 +111,12 @@ double emgcontrl::getRawData(int index)
 void emgcontrl::beginMove()
 {
 	ControlCard::GetInstance().SetMotor(ControlCard::MotorOn);
-	ControlCard::GetInstance().SetClutch(ControlCard::ClutchOn);
+	//ControlCard::GetInstance().SetClutch(ControlCard::ClutchOn);
     isBeginMove=true;
 }
 void emgcontrl::StopMove() {
 	ControlCard::GetInstance().SetMotor(ControlCard::MotorOff);
-	ControlCard::GetInstance().SetClutch(ControlCard::ClutchOff);
+	//ControlCard::GetInstance().SetClutch(ControlCard::ClutchOff);
     isBeginMove=false;
 }
 void emgcontrl::emgContrl()

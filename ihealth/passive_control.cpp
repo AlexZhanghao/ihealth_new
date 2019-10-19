@@ -3,7 +3,8 @@
 #include <process.h> 
 #include<iostream>
 #include<fstream>
-
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
 using namespace std;
 
 #define TIMER_SLEEP   0.1
@@ -63,6 +64,7 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 
 		// 是否录制动作， 1s录制一次
 		if (passive->in_record_status_ && (loop_counter_in_thread % 10 == 0)) {
+			spdlog::info("{} ready into record thread", __LINE__);
 			passive->RecordStep();
 		}
 
@@ -173,7 +175,7 @@ void PassiveControl::BeginRecord() {
 		return;
 	}	
 
-	active_control_->StartMove();
+	active_control_->StartMove(999); //被动运动示教id 设置为定值999
 	in_record_status_ = true;
 	is_exit_thread_ = false;
 	is_teach = true;
@@ -211,6 +213,10 @@ void PassiveControl::RecordStep() {
 	double joint_vel[2]{ 0 };
 	ControlCard::GetInstance().GetEncoderData(joint_angle);
 	ControlCard::GetInstance().GetJointVelocity(joint_vel);
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//spdlog::info("*****************************");
+	//spdlog::info("Record ****** shoulder angle : {} , elbow angle :{}", joint_angle[0], joint_angle[1]);
 	for (int i = 0; i < 2; i++) {
 		record_data_.target_positions[i].push_back(joint_angle[i]);
 		record_data_.target_velocitys[i].push_back(joint_vel[i]);

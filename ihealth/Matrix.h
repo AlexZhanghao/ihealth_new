@@ -268,8 +268,8 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motor
 	Vector3d n1_3;
 	Vector3d p5_4 = Vector3d(0, -d5, -r5);
 	Vector3d p4_3 = Vector3d(d3, 0, 0);
-	Vector3d p3_2 = Vector3d(0, -dy_2, -dz_2);
-	Vector3d p2_1 = Vector3d(0, d1, -d2);
+	Vector3d p3_2 = Vector3d(0, dy_2, -dz_2);
+	Vector3d p2_1 = Vector3d(0, -d1, -d2);
 
 	VectorXd Co_tem(6);
 	VectorXd joint_angle(5);
@@ -306,7 +306,7 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motor
 	R32 <<
 		cos(joint_angle(2)), -sin(joint_angle(2)), 0,
 		0, 0, 1,
-		sin(joint_angle(2)), cos(joint_angle(2)), 0;
+		-sin(joint_angle(2)), -cos(joint_angle(2)), 0;
 	R21 <<
 		cos(joint_angle(1)), -sin(joint_angle(1)), 0,
 		0, 0, -1,
@@ -320,7 +320,7 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motor
 	//	0, 0.8710, 0.4914,
 	//	0, -0.4914, 0.8710;
 	//sixdim_rotation <<
-	//	0, 1, 0,
+	//0, 1, 0,
 	//	-1, 0, 0,
 	//	0, 0, 1;
 	VectorToMatrix(pa1_3, P1_3);

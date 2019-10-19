@@ -26,8 +26,7 @@ function begin(){
 	
 	// 先添加窗户，再添加抹布，这样抹布才会画在窗户上面
 	m_window = new Window(200, 100)
-	// 最右是710
-	m_rag = new Rag(0, 596, "image/rag.png", 2)	
+	m_rag = new Rag(710, 596, "image/rag.png", 2)	
 	tid = setInterval(main_loop, 200)
 }
 

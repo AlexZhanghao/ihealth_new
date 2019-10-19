@@ -148,16 +148,17 @@ function enemy(x,y,imgsrc,speed,w,h,boomsrc,hp,dietime,score){
 	}
 }
 function random1(x,y){
-	//return Math.floor(Math.random()*(y-x)+x);
 	return Math.round(Math.random());
 }
 function random2(x,y){
-	//return Math.floor(Math.random()*(y-x)+x);
 	return Math.round(Math.random());
 }
 function random3(x,y){
-	//return Math.floor(Math.random()*(y-x)+x);
 	return Math.round(Math.random());
+}
+//boss级飞机因宽度太大应当在正中央创建，故单独建立
+function bossenemy(x,y,imgsrc,speed,w,h,boomsrc,hp,dietime,score){
+	plane.call(this,400,0,imgsrc,speed,w,h,boomsrc,hp,dietime,score);
 }
 // 事件监听
 if(document.addEventListener){
@@ -221,29 +222,32 @@ function start(){
 	}
 	time1++;
 	
-	if(time1==30){
-		// time2++;
-		// if (time2%5==0) {
-			// enemies.push(new enemy(25,clientWidth,'image/enemy3_fly_1.png',1,46,64,'image/enemy3_fly_1_boom.gif',5,400,500));
-		// }
-		// if (time2==20) {
-			// enemies.push(new enemy(57,clientWidth,'image/enemy2_fly_1.png',1,110,170,'image/enemy2_fly_1_boom.gif',20,600,1000));
-			// time2=0;
-		// }else{
-			// enemies.push(new enemy(5,clientWidth,'image/enemy1_fly_1.png',1,34,24,'image/enemy1_fly_1_boom.gif',1,200,10));
-		// }
-		if(refresh==1){
-		enemies.push(new enemy(5,clientWidth,'image/enemy1_fly_1.png',1,34,24,'image/enemy1_fly_1_boom.gif',1,200,10));
-		if(refresh>0){
-		refresh--;
-		}
-		}
+	if(time1==80){
+		if(refresh==1){	
+		 time2++;
+		 if (time2==20) {
+			 //enemies.push(new enemy(57,clientWidth,'image/10.png',1,110,170,'image/enemy2_fly_1_boom.gif',20,600,1000));
+			  enemies.push(new bossenemy(57,clientWidth,'image/4.png',1,200,129,'image/4.gif',20,600,1000));
+			 time2=0;
+		 }
+		 else if (time2%5==0) {
+			 //enemies.push(new enemy(25,clientWidth,'image/6.png',1,46,64,'image/enemy3_fly_1_boom.gif',5,400,500));
+			  enemies.push(new enemy(25,clientWidth,'image/2.png',1,120,91,'image/2.gif',5,400,500));
+		 }
+		 else{
+			 //enemies.push(new enemy(5,clientWidth,'image/4.png',1,34,24,'image/enemy1_fly_1_boom.gif',1,200,10));
+			  enemies.push(new enemy(5,clientWidth,'image/3.png',1,80,44,'image/3.gif',1,200,10));
+		 }
+		 if(refresh>0){
+		     refresh--;
+		     }
+	}
 		time1=0;
 	}
 	 //遍历数组,调用move函数
   	var enemylen = enemies.length;
   	for (var i = 0; i < enemylen; i++) {
-		if(enemies[i].planenode.offsetTop<400){
+		if(enemies[i].planenode.offsetTop<250){
     	enemies[i].move();
 		}
     	//enemies[i].move();
@@ -334,8 +338,3 @@ function start(){
         }
     }
 }
-
-
-
-
-

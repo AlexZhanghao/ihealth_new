@@ -34,15 +34,15 @@ function begin(){
 	maindiv.style.display='block'
 	
 	// 添加盘子，平底锅和鸡蛋篮子等不动的物件
-	m_plate = new Plate(0, 100, "image/plate.png")
-	m_pan = new Pan(530, 80, "image/pan.png")
-	m_egg_basket = new EggBasket(0, 477, "image/egg_basket.png")
+	m_plate = new Plate(500, 0, "image/plate.png")
+	m_pan = new Pan(10, 80, "image/pan.png")
+	m_egg_basket = new EggBasket(580, 477, "image/egg_basket.png")
 	
 	// 添加一个能动的手
-	m_hand = new Hand(0, 581, "image/hand.png")
+	m_hand = new Hand(700, 581, "image/hand.png")
 	
 	// 添加做好的鸡蛋
-	m_cooked_egg = new CookedEgg(75, 81, "image/fried_egg.png")
+	m_cooked_egg = new CookedEgg(575, 81, "image/fried_egg.png")
 	
 	tid = setInterval(fry_egg, 200)
 }
@@ -70,7 +70,7 @@ var fry_egg = function() {
 				hand.become_hand()
 				
 				// 做好的鸡蛋在平底锅里面
-				cooked_egg.move_to(580,140)
+				cooked_egg.move_to(70,140)
 				cooked_egg.append_to_maindiv()
 				
 				fry_egg_state = 2
@@ -81,7 +81,7 @@ var fry_egg = function() {
 			// 只有手离开了平底锅，这时候状态才变成3
 			if (A_disjoint_with_B(hand, pan)) {
 				// 将鸡蛋放到盘子里面
-				cooked_egg.move_to(75, 181)
+				cooked_egg.move_to(575, 81)
 				
 				// 增加分数
 				scores += 100

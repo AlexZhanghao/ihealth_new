@@ -35,7 +35,7 @@ EyeMode::~EyeMode()
 
 void EyeMode::start()
 {
-	ControlCard::GetInstance().SetClutch(ControlCard::ClutchOn);
+	//ControlCard::GetInstance().SetClutch(ControlCard::ClutchOn);
 	ControlCard::GetInstance().SetMotor(ControlCard::MotorOn);
 	isSendingData = true;
 }

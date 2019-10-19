@@ -538,8 +538,8 @@ void RFMainWindow::BindManagerPatientPageEvent()
 	evaluation_begin2->OnNotify += MakeDelegate(this, &RFMainWindow::OnEVBegin2);
 	
 	// 握力传感器开关的响应函数绑定
-	CCheckBoxUI* grip_strength_enable = static_cast<CCheckBoxUI*>(m_pm.FindControl(_T("grip_strength_enable")));
-	grip_strength_enable->OnNotify += MakeDelegate(this, &RFMainWindow::OnGripStrengthClicked);
+	//CCheckBoxUI* grip_strength_enable = static_cast<CCheckBoxUI*>(m_pm.FindControl(_T("grip_strength_enable")));
+	//grip_strength_enable->OnNotify += MakeDelegate(this, &RFMainWindow::OnGripStrengthClicked);
 
 	// 压力传感器开关的响应函数绑定
 	CCheckBoxUI* pressure_sensor_enable = static_cast<CCheckBoxUI*>(m_pm.FindControl(_T("pressure_sensor_enable")));
@@ -3232,9 +3232,9 @@ bool RFMainWindow::OnGame4Start(void *pParam)
 
 	CCheckBoxUI *pCheckBox = static_cast<CCheckBoxUI*>(pMsg->pSender);
 	std::wstring voice_path;
-
+	 int paitent_id=m_current_patient.id;
 	if (!pCheckBox->GetCheck()) {
-		m_robot.ActiveStartMove();
+		m_robot.ActiveStartMove(paitent_id);
 
 		// 主动开始时播放游戏背景音，播放完后自动循环
 		// 首先判断游戏的type，根据不同的游戏type播放不一样的背景音乐
@@ -3283,7 +3283,6 @@ bool RFMainWindow::OnGame4Recovery(void *pParam)
 	return true;
 }
 
-
 bool RFMainWindow::OnMusicItemDelete(void *pParam)
 {
 	TNotifyUI *pMsg = static_cast<TNotifyUI*>(pParam);
@@ -3328,10 +3327,10 @@ bool RFMainWindow::OnGripStrengthClicked(void *pParam) {
 
 	CCheckBoxUI *pCheckBox = static_cast<CCheckBoxUI*>(pMsg->pSender);
 	if (!pCheckBox->GetCheck()) {
-		m_grip_strength_enable = false;
-	} else {
-		// 点击这里之后，图标变成ON，这个时候握力传感器是启用的
 		m_grip_strength_enable = true;
+	} else {
+		// 点击这里之后，图标变成OFF，这个时候握力传感器是启用的
+		m_grip_strength_enable = false;
 	}
 	return true;
 
@@ -3952,7 +3951,7 @@ bool RFMainWindow::OnEVStart(void *pParam)
 		return false;
 
 	m_robot.ActiveStopMove();
-	m_robot.ActiveStartMove();
+	m_robot.ActiveStartMove(0);
 
 	StartEVDetect();
 	return true;
