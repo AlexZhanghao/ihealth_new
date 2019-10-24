@@ -6,7 +6,6 @@
 #include <vector>
 #include <queue>
 #include <string>
-#include <vector>
 
 // 这个结构体用于保存被动运动数据或者被动录制数据
 struct PassiveData {
