@@ -72,7 +72,7 @@ var fry_egg = function() {
 				// 做好的鸡蛋在平底锅里面
 				cooked_egg.move_to(70,140)
 				cooked_egg.append_to_maindiv()
-				
+								
 				fry_egg_state = 2
 			}
 			
@@ -171,30 +171,30 @@ var selfmove = function(x, y) {
 }
 
 
-/*
-// 设置对键盘的监听事件
-document.onkeydown = function(event) {
-	var e = event
-	var k = e.keyCode
-	m_hand= window.m_hand
-	m_egg_basket = window.m_egg_basket
+
+// // 设置对键盘的监听事件
+// document.onkeydown = function(event) {
+	// var e = event
+	// var k = e.keyCode
+	// m_hand= window.m_hand
+	// m_egg_basket = window.m_egg_basket
 	
-	var speed = 20
-	if (k == 38) {
-		// up
-		m_hand.move_to(m_hand.x, m_hand.y-speed)
-	} else if (k == 40) {
-		// down		
-		m_hand.move_to(m_hand.x, m_hand.y + speed)
-	} else if (k == 37) {
-		// left	
-		m_hand.move_to(m_hand.x-speed, m_hand.y)
-	} else if (k == 39) {
-		// right	
-		m_hand.move_to(m_hand.x + speed, m_hand.y)
-	}
-}
-*/
+	// var speed = 20
+	// if (k == 38) {
+		// // up
+		// m_hand.move_to(m_hand.x, m_hand.y-speed)
+	// } else if (k == 40) {
+		// // down		
+		// m_hand.move_to(m_hand.x, m_hand.y + speed)
+	// } else if (k == 37) {
+		// // left	
+		// m_hand.move_to(m_hand.x-speed, m_hand.y)
+	// } else if (k == 39) {
+		// // right	
+		// m_hand.move_to(m_hand.x + speed, m_hand.y)
+	// }
+// }
+
 
 
 
