@@ -32,6 +32,9 @@
 				<HorizontalLayout height="309">
 					<Control width="40"/>
 					<Button width="540" name="active_game_fry_egg"  normalimage="game_fry_egg.png" hotimage="game_fry_egg.png" pushedimage="game_fry_egg.png"/>
+					<Control />
+					<Button width="540" name="active_game_eat_bean"  normalimage="game_eat_bean.jpg" hotimage="game_eat_bean.jpg" pushedimage="game_eat_bean.jpg"/>
+					<Control />
 				</HorizontalLayout>
 				<Control />
 			</VerticalLayout>

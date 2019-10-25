@@ -70,28 +70,32 @@ var fry_egg = function() {
 
 //随机生成豆子
 function build_bean(x, y, imagesrc){
-	var creat=random1(0,0)+random2(0,0)+random3(0,0);
-	if(creat==0){
-	    Pan.call(this,100,0,imagesrc);
-	}
-	else if(creat==1) {
-		Pan.call(this,10,80,imagesrc);
-	}
-    else if(creat==2){
-		Pan.call(this,500,0,imagesrc);
-	}
-	else if(creat==3){
-		Pan.call(this,700,0,imagesrc);
-	}
+	// var creat=random1(0,0)+random2(0,0)+random3(0,0);
+	// if(creat==0){
+	    // Pan.call(this,100,0,imagesrc);
+	// }
+	// else if(creat==1) {
+		// Pan.call(this,10,80,imagesrc);
+	// }
+    // else if(creat==2){
+		// Pan.call(this,500,0,imagesrc);
+	// }
+	// else if(creat==3){
+		// Pan.call(this,700,0,imagesrc);
+	// }
+	Pan.call(this,Math.random()*600,Math.random()*500,imagesrc);
 }
-function random1(x,y){
-	return Math.round(Math.random());
-}
-function random2(x,y){
-	return Math.round(Math.random());
-}
-function random3(x,y){
-	return Math.round(Math.random());
+// function random1(x,y){
+	// return Math.round(Math.random());
+// }
+// function random2(x,y){
+	// return Math.round(Math.random());
+// }
+// function random3(x,y){
+	// return Math.round(Math.random());
+// }
+function random(x,y){
+	return Math.floor(Math.random()*(y-x)+x);
 }
 
 // A和B相离函数
@@ -160,28 +164,28 @@ var selfmove = function(x, y) {
 
 
 
-// 设置对键盘的监听事件
-document.onkeydown = function(event) {
-	var e = event
-	var k = e.keyCode
-	m_hand= window.m_hand
-	m_egg_basket = window.m_egg_basket
+// // 设置对键盘的监听事件
+// document.onkeydown = function(event) {
+	// var e = event
+	// var k = e.keyCode
+	// m_hand= window.m_hand
+	// m_egg_basket = window.m_egg_basket
 	
-	var speed = 20
-	if (k == 38) {
-		// up
-		m_hand.move_to(m_hand.x, m_hand.y-speed)
-	} else if (k == 40) {
-		// down		
-		m_hand.move_to(m_hand.x, m_hand.y + speed)
-	} else if (k == 37) {
-		// left	
-		m_hand.move_to(m_hand.x-speed, m_hand.y)
-	} else if (k == 39) {
-		// right	
-		m_hand.move_to(m_hand.x + speed, m_hand.y)
-	}
-}
+	// var speed = 20
+	// if (k == 38) {
+		// // up
+		// m_hand.move_to(m_hand.x, m_hand.y-speed)
+	// } else if (k == 40) {
+		// // down		
+		// m_hand.move_to(m_hand.x, m_hand.y + speed)
+	// } else if (k == 37) {
+		// // left	
+		// m_hand.move_to(m_hand.x-speed, m_hand.y)
+	// } else if (k == 39) {
+		// // right	
+		// m_hand.move_to(m_hand.x + speed, m_hand.y)
+	// }
+// }
 
 
 

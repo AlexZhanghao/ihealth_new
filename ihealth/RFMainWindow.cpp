@@ -444,6 +444,10 @@ void RFMainWindow::BindManagerPatientPageEvent()
 	CButtonUI* active_game_fry_egg = static_cast<CButtonUI*>(m_pm.FindControl(_T("active_game_fry_egg")));
 	if (active_game_fry_egg != NULL) active_game_fry_egg->OnNotify += MakeDelegate(this, &RFMainWindow::OnActiveGameFryEgg);
 
+
+	CButtonUI* active_game_eat_bean = static_cast<CButtonUI*>(m_pm.FindControl(_T("active_game_eat_bean")));
+	if (active_game_eat_bean != NULL) active_game_eat_bean->OnNotify += MakeDelegate(this, &RFMainWindow::OnActiveGameEatBean);
+
 	CButtonUI* btn_game4 = static_cast<CButtonUI*>(m_pm.FindControl(_T("btn_game4")));
 	btn_game4->OnNotify += MakeDelegate(this, &RFMainWindow::OnGame4);
 
@@ -3156,6 +3160,30 @@ bool RFMainWindow::OnActiveGameFryEgg(void *pParam)
 	return true;
 }
 
+bool RFMainWindow::OnActiveGameEatBean(void *pParam)
+{
+	TNotifyUI *pMsg = static_cast<TNotifyUI*>(pParam);
+	if (pMsg->sType != _T("click"))
+		return true;
+
+	CLabelUI* pLabel = static_cast<CLabelUI*>(m_pm.FindControl(_T("active_train_game4_welcom")));
+	pLabel->SetText((_T("欢迎您，") + m_login_info.login_user + _T("!∨")).c_str());
+
+	CLabelUI* pLabelUI = static_cast<CLabelUI*>(m_pm.FindControl(_T("gamename")));
+	pLabelUI->SetText(_T("吃豆豆"));
+
+	CWkeWebkitUI* game4 = static_cast<CWkeWebkitUI*>(m_pm.FindControl(_T("game4")));
+	if (game4) {
+		CDuiString respath = CPaintManagerUI::GetResourcePath() + _T("/eat_bean/index.html");
+		game4->SetFile((std::wstring)respath);
+	}
+
+	CButtonUI* game4_start = static_cast<CButtonUI*>(m_pm.FindControl(_T("game4_start")));
+	game4_start->SetVisible(true);
+	ShowActiveGameWebkit();
+	return true;
+}
+
 bool RFMainWindow::OnGame4(void *pParam)
 {
 	//TNotifyUI *pMsg = static_cast<TNotifyUI*>(pParam);
@@ -3246,6 +3274,8 @@ bool RFMainWindow::OnGame4Start(void *pParam)
 		} else if (game_type == RF_GAME_NAME_CLEAN_WINDOW) {
 			bg_name = _T("voice/active_game_clean_window_bg.wav");
 		} else if (game_type == RF_GAME_NAME_FRY_EGG) {
+			bg_name = _T("voice/active_game_fry_egg_bg.wav");
+		} else if (game_type == RF_GAME_NAME_EAT_BEAN) {
 			bg_name = _T("voice/active_game_fry_egg_bg.wav");
 		}
 
@@ -6942,7 +6972,17 @@ void OnActiveGameDetectTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTim
 		rag_move += xy;
 		game_webkit->RunJS(rag_move);
 
-	} else if (gameType == RF_GAME_NAME_PLANE_GAOJI) {
+	}else if (gameType == RF_GAME_NAME_EAT_BEAN) {
+		//吃豆豆
+		double pos[2];
+		RFMainWindow::MainWindow->m_robot.CalculateRagPos(pos);
+
+		wchar_t xy[128];
+		wsprintf(xy, _T("(%d,%d);"), (int)pos[0], (int)pos[1]);
+		std::wstring rag_move = _T("selfmove");
+		rag_move += xy;
+		game_webkit->RunJS(rag_move);
+	}else if (gameType == RF_GAME_NAME_PLANE_GAOJI) {
 		// 飞机大战
 		if (fire) {
 			game_webkit->RunJS(_T("fire();"));
