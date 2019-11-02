@@ -3170,7 +3170,7 @@ bool RFMainWindow::OnActiveGameEatBean(void *pParam)
 	pLabel->SetText((_T("欢迎您，") + m_login_info.login_user + _T("!∨")).c_str());
 
 	CLabelUI* pLabelUI = static_cast<CLabelUI*>(m_pm.FindControl(_T("gamename")));
-	pLabelUI->SetText(_T("吃豆豆"));
+	pLabelUI->SetText(_T("点地鼠"));
 
 	CWkeWebkitUI* game4 = static_cast<CWkeWebkitUI*>(m_pm.FindControl(_T("game4")));
 	if (game4) {

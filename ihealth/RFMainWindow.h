@@ -19,7 +19,7 @@
 #define RF_GAME_NAME_PLANE_GAOJI _T("飞机大战高级")
 #define RF_GAME_NAME_CLEAN_WINDOW _T("擦窗户")
 #define RF_GAME_NAME_FRY_EGG _T("煎鸡蛋")
-#define RF_GAME_NAME_EAT_BEAN _T("吃豆豆")
+#define RF_GAME_NAME_EAT_BEAN _T("打地鼠")
 
 #define RF_DESIGN_WINDOW_WIDTH 1200
 #define RF_DESIGN_WINDOW_HEIGHT 675

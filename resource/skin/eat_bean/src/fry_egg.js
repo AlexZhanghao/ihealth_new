@@ -53,11 +53,14 @@ var fry_egg = function() {
 	if(create_bean==1){
 		beans.push(new build_bean(10, 80, "image/pan.png"))
 		create_bean--;
+		
 	}
 	
 	// 手碰到平底锅后平底锅消失
 	var beanlen = beans.length;	
-	if (A_in_B(hand, beans[beanlen-1])) {	
+	if (A_in_B(hand, beans[beanlen-1])) {
+	scores+=100
+	score.innerHTML = scores
   	for (var i = 0; i < beanlen; i++) {       		
 		    maindiv.removeChild(beans[0].node);//删除节点
             beans.splice(i,1);	
