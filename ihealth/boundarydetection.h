@@ -30,12 +30,6 @@ public:
 	 bool m_stop;
      //获取四个光电开关状态
      void getSensorData();
-     //获取两个力矩传感器的数据
-     void getTorqueData();
-	 //获取拉力传感器数据
-	 void GetPullSensorData();   
-
-	 void getTorqueData(double data[2]);
 	 //获取关节角度
 	 void getEncoderData();
 	 //获取关节速度
