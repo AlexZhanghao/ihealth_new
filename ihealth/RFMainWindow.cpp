@@ -1304,6 +1304,8 @@ LRESULT RFMainWindow::OnPullForceError(UINT uMsg, WPARAM wParam, LPARAM lParam) 
 	pCheckBox2->SetCheck(false);
 	//将复位开关关闭，这样即使在复位时也能停止
 	ControlCard::GetInstance().is_reset_stop = true;
+	//将bundarydetection中的检测打开
+	m_robot.RobotReturnGlobalDetection(global_detection_on);
 	return true;
 }
 
@@ -2618,10 +2620,10 @@ bool RFMainWindow::OnPassiveTrainPlay(void *pParam)
 			playbyoder = false;
 		}
 		m_passive_train_action.StartPlay(m_current_passivetraininfos, playbyoder);
-
+		m_robot.RobotReturnGlobalDetection(global_detection_off);
 	} else {
 		m_passive_train_action.StopPlay();
-
+		m_robot.RobotReturnGlobalDetection(global_detection_on);
 		// 播放暂停音频
 		std::wstring voice_path = CPaintManagerUI::GetResourcePath() + _T("voice/pause.wav");
 		if (!voice_path.empty() && _waccess(voice_path.c_str(), 0) != -1) {
@@ -3260,10 +3262,10 @@ bool RFMainWindow::OnGame4Start(void *pParam)
 
 	CCheckBoxUI *pCheckBox = static_cast<CCheckBoxUI*>(pMsg->pSender);
 	std::wstring voice_path;
-	 int paitent_id=m_current_patient.id;
+	int paitent_id=m_current_patient.id;
 	if (!pCheckBox->GetCheck()) {
 		m_robot.ActiveStartMove(paitent_id);
-
+		m_robot.RobotReturnGlobalDetection(global_detection_off);
 		// 主动开始时播放游戏背景音，播放完后自动循环
 		// 首先判断游戏的type，根据不同的游戏type播放不一样的背景音乐
 		std::wstring bg_name;
@@ -3285,7 +3287,7 @@ bool RFMainWindow::OnGame4Start(void *pParam)
 		}
 	} else {
 		m_robot.ActiveStopMove();
-
+		m_robot.RobotReturnGlobalDetection(global_detection_on);
 		// 播放暂停音乐，并停止主动声音
 		voice_path = CPaintManagerUI::GetResourcePath() + _T("voice/pause.wav");
 		if (!voice_path.empty() && _waccess(voice_path.c_str(), 0) != -1) {
@@ -6939,15 +6941,15 @@ void OnActiveGameDetectTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTim
 		RFMainWindow::MainWindow->StopGameRecord();
 	}
 
-	bool fire = false;
+	bool fire = true;
 	// 这里采集握力传感器的值决定是否fire，只有在使能的情况下才进行采集
-	if (RFMainWindow::MainWindow->m_grip_strength_enable) {
-		if (RFMainWindow::MainWindow->m_robot.IsFire()) {
-			fire = true;
-		}
-	} else {
-		fire = true;
-	}
+	//if (RFMainWindow::MainWindow->m_grip_strength_enable) {
+	//	if (RFMainWindow::MainWindow->m_robot.IsFire()) {
+	//		fire = true;
+	//	}
+	//} else {
+	//	fire = true;
+	//}
 
 	std::wstring gameType = game_webkit->RunJS(_T("getGameType();"));
 	// 游戏的控制都在这里，通过判断游戏的type来执行不同的控制

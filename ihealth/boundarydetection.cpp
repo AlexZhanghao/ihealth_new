@@ -50,6 +50,7 @@ boundaryDetection::boundaryDetection()
 	}
 	m_emergency_stop_status = true;
 	vel_i = 0;
+	is_global_detection_ = true;
     m_stop=false;
 	//创建一个匿名的互斥对象，且为有信号状态，
 	hMutex = CreateMutex(NULL, FALSE, NULL);	hAngleMutex= CreateMutex(NULL, FALSE, NULL);
@@ -96,9 +97,6 @@ unsigned int __stdcall BydetectThreadFun(PVOID pParam)
 		WaitForSingleObject(Bydetect->hVelMutex, INFINITE);
 		Bydetect->getJointVel();
 		ReleaseMutex(Bydetect->hVelMutex);
-
-		Bydetect->getTorqueData();
-		Bydetect->GetPullSensorData();
 
 		Bydetect->check();
     }
@@ -149,62 +147,7 @@ void boundaryDetection::getSensorData()
 	 m_stop = true;
 	 //_endthreadex(m_Handle);
  }
-void boundaryDetection::getTorqueData()
-{
-    TaskHandle  taskHandle = 0;
-    int32       read=0;
-    int status =0;
-    status =DAQmxCreateTask("TorqueDataTask", &taskHandle);
-    status =DAQmxCreateAIVoltageChan(taskHandle, TCH, "TorqueDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
 
-    status =DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
-
-    status =DAQmxStartTask(taskHandle);
-    status =DAQmxReadAnalogF64(taskHandle, 10, 0.2, DAQmx_Val_GroupByScanNumber, rawTorqueData,20, &read, NULL);
-    status =DAQmxStopTask(taskHandle);
-    status =DAQmxClearTask(taskHandle);
-
-    for(int j=0;j<2;j++){
-        Torque_Sensor[j]=rawTorqueData[j]*2;
-    }
-}
-
-void boundaryDetection::GetPullSensorData() {
-	TaskHandle taskHandle = 0;
-	int32 read = 0;
-	int status = 0;
-
-	status = DAQmxCreateTask("PullDataTask", &taskHandle);
-	status = DAQmxCreateAIVoltageChan(taskHandle, pull_sensor_channel, "PullDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
-	status = DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
-	status = DAQmxStartTask(taskHandle);
-	status = DAQmxReadAnalogF64(taskHandle, 5, 0.2, DAQmx_Val_GroupByScanNumber, raw_pull_data, 20, &read, NULL);
-	status = DAQmxStopTask(taskHandle);
-	status = DAQmxClearTask(taskHandle);
-	for (int i = 0; i < 4; i++) {
-		Pull_Sensor[i] = raw_pull_data[i] * 2;
-	}
-}
-
-void boundaryDetection::getTorqueData(double data[2])
-{
-	TaskHandle  taskHandle = 0;
-	int32       read=0;
-	int status =0;
-	status =DAQmxCreateTask("TorqueDataTask", &taskHandle);
-	status =DAQmxCreateAIVoltageChan(taskHandle, TCH, "TorqueDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
-
-	status =DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
-
-	status =DAQmxStartTask(taskHandle);
-	status =DAQmxReadAnalogF64(taskHandle, 10, 0.2, DAQmx_Val_GroupByScanNumber, rawTorqueData,20, &read, NULL);
-	status =DAQmxStopTask(taskHandle);
-	status =DAQmxClearTask(taskHandle);
-
-	for(int j=0;j<2;j++){
-		data[j]=rawTorqueData[j]*2;
-	}
-}
 void boundaryDetection::getEncoderData()
 {
 	int ret = 0;
@@ -289,7 +232,9 @@ void boundaryDetection::check() {
 	//}
 
 	// 拉力保护
-	DataAcquisition::GetInstance().AcquisitePullSensorData();
+	if (is_global_detection_) {
+		DataAcquisition::GetInstance().AcquisitePullAndTorqueData();
+	}
 	double abs_shoulder_forward_pull = fabs(DataAcquisition::GetInstance().ShoulderForwardPull());
 	double abs_shoulder_backward_pull = fabs(DataAcquisition::GetInstance().ShoulderBackwardPull());
 	double abs_elbow_forward_pull = fabs(DataAcquisition::GetInstance().ElbowForwardPull());
@@ -328,4 +273,8 @@ void boundaryDetection::check() {
 
  void boundaryDetection::SetRobot(Robot *pRobot) {
 	 m_pRobot = pRobot;
+ }
+
+ void boundaryDetection::ReturnGlobalDetection(int status) {
+	 is_global_detection_ = status;
  }

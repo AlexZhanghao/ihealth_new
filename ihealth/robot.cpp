@@ -227,6 +227,9 @@ void Robot::stopResetPos()
 		timeEndPeriod(wAccuracy);
 }
 
+void Robot::RobotReturnGlobalDetection(int status) {
+	bDetect->ReturnGlobalDetection(status) ;
+}
 
 void getSensorData(bool Travel_Switch[4])
 {

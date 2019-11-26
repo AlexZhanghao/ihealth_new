@@ -9,6 +9,8 @@ using namespace std;
 
 const char *DataAcquisition::kTorqueChannel = "dev2/ai4:5";
 const char *DataAcquisition::kPullSensorChannel = "dev2/ai0:3";
+//这里并没有把上面两个channel去掉，因为在boundarydetection中用到了它们
+const char *DataAcquisition::kPullAndTorqueChannel = "dev2/ai0:5";
 const char *DataAcquisition::kGripChannel = "dev2/ai6";
 const char *DataAcquisition::kSixDimensionForceChannel = "dev1/ai0:5";
 const char *DataAcquisition::kPressureForceChannel= "Dev3/ai1:2";
@@ -42,17 +44,6 @@ DataAcquisition::DataAcquisition() {
 	status = DAQmxStartTask(p_task_handle);
 	status = DAQmxStopTask(p_task_handle);
 
-	//力矩传感器
-	//status = DAQmxCreateTask("TorqueDataTask", &t_task_handle);
-	//status = DAQmxCreateAIVoltageChan(t_task_handle, kTorqueChannel, "TorqueDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
-	//status = DAQmxCfgSampClkTiming(t_task_handle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
-
-	//status = DAQmxSetReadRelativeTo(t_task_handle, DAQmx_Val_MostRecentSamp);
-	//status = DAQmxSetReadOffset(t_task_handle, 0);
-	//status = DAQmxStartTask(t_task_handle);
-	//status = DAQmxStopTask(t_task_handle);
-
-
 	//初始化变换矩阵
 	kTransformMatrix << -0.02387, -0.16164, 0.65185, 48.29934, 0.22454, -48.21503,
 		-0.79366, -55.63349, -0.38984, 27.64338, 0.06443, 27.76042,
@@ -60,6 +51,10 @@ DataAcquisition::DataAcquisition() {
 		-0.02190, 0.02187, -1.16058, 0.03057, 1.13361, -0.00412,
 		1.31922, -0.01212, -0.69040, 0.02994, -0.65557, 0.00866,
 		0.01390, 1.00881, 0.00664, 1.00606, -0.00454, 1.02667;
+
+	//for (int i = 0;i < 6;++i) {
+	//	pull_and_torque_sensor_data[i] = 0;
+	//}
 }
 
 
@@ -69,59 +64,26 @@ DataAcquisition &DataAcquisition::GetInstance() {
 	return instance;
 }
 
-void DataAcquisition::AcquisiteTorqueData() {
-	//TaskHandle taskHandle = 0;
-	int32 read = 0;
-	int status = 0;
-	//double torque_data[2]{ 0 };
-	//status = DAQmxCreateTask("TorqueDataTask", &taskHandle);
-	//status = DAQmxCreateAIVoltageChan(taskHandle, kTorqueChannel, "TorqueDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
-	//status = DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
-	//status = DAQmxStartTask(taskHandle);
-	status = DAQmxReadAnalogF64(t_task_handle, 10, 0.2, DAQmx_Val_GroupByScanNumber, torque_data, 20, &read, NULL);
-	//status = DAQmxStopTask(taskHandle);
-	//status = DAQmxClearTask(taskHandle);
-
-	/*这里需要根据实际的连线确定正确的顺序*/
-	//shoulder_raw_torque_ = torque_data[1];
-	//elbow_raw_torque_ = torque_data[0];
-}
-
-void DataAcquisition::AcquisiteTorqueData(double torquedata[2]) {
-	int32 read = 0;
-	int status = 0;
-	double torque_data[2]{ 0 };
-
-	//status = DAQmxCreateTask("TorqueDataTask", &taskHandle);
-	//status = DAQmxCreateAIVoltageChan(taskHandle, kTorqueChannel, "TorqueDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
-	//status = DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
-	//status = DAQmxStartTask(taskHandle);
-	status = DAQmxReadAnalogF64(t_task_handle, 1, 0.2, DAQmx_Val_GroupByScanNumber, torque_data, 2, &read, NULL);
-	//status = DAQmxStopTask(taskHandle);
-	//status = DAQmxClearTask(taskHandle);
-
-	torquedata[0] = torque_data[0];
-	torquedata[1] = torque_data[1];
-}
-
-void DataAcquisition::AcquisitePullSensorData() {
+void DataAcquisition::AcquisitePullAndTorqueData() {
 	TaskHandle taskHandle = 0;
 	int32 read = 0;
 	int status = 0;
-	double pull_sensor_data[4]{ 0 };
-	status = DAQmxCreateTask("PullDataTask", &taskHandle);
-	status = DAQmxCreateAIVoltageChan(taskHandle, kPullSensorChannel, "PullDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
+	double pull_and_torque_sensor_data[6]{ 0 };
+	status = DAQmxCreateTask("PullAndTorqueDataTask", &taskHandle);
+	status = DAQmxCreateAIVoltageChan(taskHandle, kPullAndTorqueChannel, "PullAndTorqueDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
 	status = DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 10);
 	status = DAQmxStartTask(taskHandle);
-	status = DAQmxReadAnalogF64(taskHandle, 1, 0.2, DAQmx_Val_GroupByScanNumber, pull_sensor_data, 4, &read, NULL);
+	status = DAQmxReadAnalogF64(taskHandle, 1, 0.2, DAQmx_Val_GroupByScanNumber, pull_and_torque_sensor_data, 6, &read, NULL);
 	status = DAQmxStopTask(taskHandle);
 	status = DAQmxClearTask(taskHandle);
 
 	/*这里需要根据实际连线确定正确的顺序*/
-	shoulder_raw_forward_pull_ = pull_sensor_data[0];
-	shoulder_raw_backward_pull_ = pull_sensor_data[1];
-	elbow_raw_forward_pull_ = pull_sensor_data[2];
-	elbow_raw_backward_pull_ = pull_sensor_data[3];
+	shoulder_raw_forward_pull_ = pull_and_torque_sensor_data[0];
+	shoulder_raw_backward_pull_ = pull_and_torque_sensor_data[1];
+	elbow_raw_forward_pull_ = pull_and_torque_sensor_data[2];
+	elbow_raw_backward_pull_ = pull_and_torque_sensor_data[3];
+	shoulder_raw_torque_ = pull_and_torque_sensor_data[4];
+	elbow_raw_torque_ = pull_and_torque_sensor_data[5];
 }
 
 void DataAcquisition::AcquisiteTensionData(double tension_output[2]) {
@@ -191,14 +153,6 @@ void DataAcquisition::AcquisiteGripData(double grip[1]) {
 	status = DAQmxClearTask(taskHandle);
 }
 
-double DataAcquisition::ShoulderTorque() {
-	return kRawToReal * shoulder_raw_torque_;
-}
-
-double DataAcquisition::ElbowTorque() {
-	return kRawToReal * elbow_raw_torque_;
-}
-
 double DataAcquisition::ShoulderForwardPull() {
 	return kRawToReal * shoulder_raw_forward_pull_;
 }
@@ -213,6 +167,14 @@ double DataAcquisition::ElbowForwardPull() {
 
 double DataAcquisition::ElbowBackwardPull() {
 	return kRawToReal * elbow_raw_backward_pull_;
+}
+
+double DataAcquisition::ShoulderTorque() {
+	return kRawToReal * shoulder_raw_torque_;
+}
+
+double DataAcquisition::ElbowTorque() {
+	return kRawToReal * elbow_raw_torque_;
 }
 
 bool DataAcquisition::StartTask() {

@@ -81,6 +81,7 @@ public:
 	//??¦Ë
 	void resetPos();
 	void stopResetPos();
+	void RobotReturnGlobalDetection(int status);
 
 	void setWindow(HWND hWnd);
 public:
