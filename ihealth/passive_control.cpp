@@ -5,12 +5,27 @@
 #include<fstream>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include "data_acquisition.h"
+//#include<ctime>
 using namespace std;
 
 #define TIMER_SLEEP   0.1
+//#define HAVE_STRUCT_TIMESPEC
 const double Comfort_Pos[2]={0,0};//开始运动的初始位置，人觉得舒服的位置
 bool is_exit_thread_ = false;
 int loop_counter_in_thread = 0;
+
+//导出被动运动数据
+// std::string pathname="..\\..\\resource\\ExportData\\";
+// time_t t = time(0);
+// char ch[64];
+// //strftime(ch, sizeof(ch), "%Y-%m-%d %H-%M-%S", localtime(&t)); //年-月-日 时-分-秒
+// std::string paitent_info="passive_";
+// ofstream joint_value(pathname+paitent_info+"joint_"+".txt", ios::app | ios::out);
+// ofstream torque_value(pathname+paitent_info+"torque_"+".txt", ios::app | ios::out);
+// ofstream sixdim_force_value(pathname+paitent_info+"sixdim_force_"+".txt", ios::app | ios::out);
+// ofstream sum_pressure_force_value(pathname+paitent_info+"sum_pressure_force_"+".txt", ios::app | ios::out);
+// ofstream pull_force_value(pathname + paitent_info + "pull_force_" + ".txt", ios::app | ios::out);
 
 PassiveControl::PassiveControl() {
     //初始化动作队列
@@ -46,6 +61,26 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 	UINT start, end;
 
 	start = GetTickCount();
+	std::string pathname="..\\..\\resource\\ExportData\\";
+    time_t t = time(0);
+    char ch[64];
+    strftime(ch, sizeof(ch), "%Y-%m-%d %H-%M-%S", localtime(&t)); //年-月-日 时-分-秒
+    std::string paitent_info="passive_";
+	ofstream joint_value(pathname+paitent_info+"joint_"+ch+".txt", ios::app | ios::out);
+    ofstream torque_value(pathname+paitent_info+"torque_"+ch+".txt", ios::app | ios::out);
+    ofstream sixdim_force_value(pathname+paitent_info+"sixdim_force_"+ch+".txt", ios::app | ios::out);
+	ofstream sum_pressure_force_value(pathname+paitent_info+"sum_pressure_force_"+ch+".txt", ios::app | ios::out);
+	ofstream pull_force_value(pathname + paitent_info + "pull_force_" + ch +".txt", ios::app | ios::out);
+	double angle[2]{0};
+    double torque[2]{0};
+    double six_dim_force[6]{0};
+	joint_value << " shoulder horizontal flexion/extension  " << " shoulder adduction/abduction  " << " shoulder flexion/extension " << " elbow flexion/extension"
+		<< " forearm pronation/supination " << endl;
+   	torque_value << " shoulder(N.m)  "
+                << "  elbow(N.m)  " << endl;
+    sixdim_force_value<<" fx(N) "<<" fy(N) "<<" fz(N) "<<" tx(N.m) "<<" ty(N.m) "<<" tz(N.m) "<<endl;
+    sum_pressure_force_value<<"F>0表示肘曲"<<"F<0表示肘伸"<<endl;
+	pull_force_value << " shoulder_forward " << " shoulder_backward " << " elbow_forward " << " elbow_backward " << endl;
 	while (TRUE) {
 		//延时 TIMER_SLEEP s
 		while (TRUE) {
@@ -57,8 +92,37 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 				SwitchToThread();
 			}
 		}
+	//写入被动运动数据
+	double angle[2]{0};
+    double torque[2]{0};
+    double elbow_pressure[2]{0};
+    double six_dim_force[6]{0};
 
+	ControlCard::GetInstance().GetEncoderData(angle);
+	DataAcquisition::GetInstance().AcquisiteTensionData(elbow_pressure);
+	DataAcquisition::GetInstance().AcquisiteSixDemensionData(six_dim_force);
+	/***********new pull sensor **********************/
+	DataAcquisition::GetInstance().AcquisitePullAndTorqueData();
+	double abs_shoulder_forward_pull = fabs(DataAcquisition::GetInstance().ShoulderForwardPull());
+	double abs_shoulder_backward_pull = fabs(DataAcquisition::GetInstance().ShoulderBackwardPull());
+	double abs_elbow_forward_pull = fabs(DataAcquisition::GetInstance().ElbowForwardPull());
+	double abs_elbow_backward_pull = fabs(DataAcquisition::GetInstance().ElbowBackwardPull());
+	torque[0] = DataAcquisition::GetInstance().ShoulderTorque();
+	torque[1] = DataAcquisition::GetInstance().ElbowTorque();
+
+	joint_value << angle[0] << "   "<<angle[0]*0.88<<"    "<< angle[1]<<"    "<<angle[1]*1.3214<<"    "<<angle[1]*0.6607 << std::endl;
+	torque_value << torque[0] << "          " << torque[1] << std::endl;
+	sixdim_force_value << six_dim_force[0] << "          " << six_dim_force[1] << "          " << six_dim_force[2] << "          " << six_dim_force[3]
+						<< "          " << six_dim_force[4] << "          " << six_dim_force[5] << std::endl;
+	sum_pressure_force_value<< elbow_pressure[0] * 10- elbow_pressure[1] * 10<<endl;
+	pull_force_value << abs_elbow_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_shoulder_backward_pull << endl;
+		
 		if (is_exit_thread_) {
+			joint_value.close();
+			torque_value.close();
+			sixdim_force_value.close();
+			sum_pressure_force_value.close();
+			pull_force_value.close();
 			break;
 		}
 
@@ -250,7 +314,7 @@ void PassiveControl::MoveStep() {
 		}
 	}
 
-	//在插值区间内，相当于每100ms就运动到一个新的插值点。
+	//在插值区间内，相当于每100ms就运动到一个新的插值点。///在循环内计算插值点，这样效率是否好？
 	for (int j = 0; j < 2; j++) {
 		double pos = PHermite(hermite_time_interval_[j],
 			hermite_pos_interval_[j],
@@ -260,6 +324,8 @@ void PassiveControl::MoveStep() {
 		//APS_absolute_move(Axis[j], pos / ControlCard::Unit_Convert, 15 / ControlCard::Unit_Convert);
 		APS_ptp_v(Axis[j], option, pos / ControlCard::Unit_Convert, 15 / ControlCard::Unit_Convert, NULL);
 	}
+	
+
 	is_busy_ = true;
 }
 

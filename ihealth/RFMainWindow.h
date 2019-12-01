@@ -396,6 +396,10 @@ public:
 	EvaluationYDGN					m_evydgn;
 	// 握力传感器是否使能
 	bool m_grip_strength_enable = true;
+	//是否使用boundary detection中的AcquisitePullAndTorqueData函数
+	int global_detection_on = 1;
+	int global_detection_off = 0;
+
 };
 
 

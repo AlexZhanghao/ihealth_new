@@ -21,6 +21,7 @@ public:
 	void startBydetect();
 	//停止边界检测
 	void stopBydetect();
+	void ReturnGlobalDetection(int status);
 	//加数据的读写锁
 	 HANDLE hMutex;
 	 HANDLE hAngleMutex;
@@ -30,12 +31,6 @@ public:
 	 bool m_stop;
      //获取四个光电开关状态
      void getSensorData();
-     //获取两个力矩传感器的数据
-     void getTorqueData();
-	 //获取拉力传感器数据
-	 void GetPullSensorData();   
-
-	 void getTorqueData(double data[2]);
 	 //获取关节角度
 	 void getEncoderData();
 	 //获取关节速度
@@ -45,6 +40,7 @@ public:
 		
 	 void SetRobot(Robot *pRobot);
 	 bool is_error_happens_;
+	 bool is_global_detection_;
 
 	 static double shoulder_torque;
 	 static double elbow_torque;
