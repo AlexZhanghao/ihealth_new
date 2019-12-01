@@ -251,7 +251,7 @@ _Matrix_Type_ pseudoInverse(const _Matrix_Type_ &a, double epsilon =
 }
 
 template<typename DerivedA>
-void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motorangle[2], double moment[3],int is_left) {
+void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motorangle[2], double moment[3]) {
 	Matrix3d axisdirection_hat[4];
 	Matrix3d spinor_hat[4];
 	Matrix3d so3[4];
@@ -303,26 +303,15 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motor
 	//	sin(joint_angle(2)), cos(joint_angle(2)), 1;
 
 	//各个关节间的旋转矩阵
-	if (is_left) {
-		R32 <<
-			cos(joint_angle(2)), -sin(joint_angle(2)), 0,
-			0, 0, 1,
-			sin(joint_angle(2)), cos(joint_angle(2)), 0;
-		R21 <<
-			cos(joint_angle(1)), -sin(joint_angle(1)), 0,
-			0, 0, -1,
-			sin(joint_angle(1)), cos(joint_angle(1)), 0;
-	}
-	else {
-		R32 <<
-			cos(joint_angle(2)), -sin(joint_angle(2)), 0,
-			0, 0, 1,
-			-sin(joint_angle(2)), -cos(joint_angle(2)), 0;
-		R21 <<
-			cos(joint_angle(1)), -sin(joint_angle(1)), 0,
-			0, 0, -1,
-			sin(joint_angle(1)), cos(joint_angle(1)), 0;
-	}
+	R32 <<
+		cos(joint_angle(2)), -sin(joint_angle(2)), 0,
+		0, 0, 1,
+		-sin(joint_angle(2)), -cos(joint_angle(2)), 0;
+	R21 <<
+		cos(joint_angle(1)), -sin(joint_angle(1)), 0,
+		0, 0, -1,
+		sin(joint_angle(1)), cos(joint_angle(1)), 0;
+
 
 	//力从套环到关节的旋转矩阵
 	to_zero.setZero();

@@ -77,7 +77,6 @@ private:
 
 	double shoulder_angle_max_;
 	double elbow_angle_max_;
-	int is_left;
 	static double six_dimforce[6];
 	double joint_angle[2];
 	static double elbow_Sensitivity_;

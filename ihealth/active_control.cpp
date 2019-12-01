@@ -53,9 +53,6 @@ extern Vector3d AxisPosition[5] {
 };
 Matrix3d RF13;
 Matrix3d sixdim_rotation;
-Matrix3d R32;
-Matrix3d R21;
-
 //导出病人数据将主动运动与病人id关联起来
 struct ExportPaitentData
 {
@@ -116,7 +113,7 @@ void ActiveControl::LoadParamFromFile() {
 	force_position_ << f[0], f[1], f[2];
 
 	// param depend on left or right arm
-	is_left = cfg.get<int>("is_left");
+	int is_left = cfg.get<int>("is_left");
 	if (is_left) {
 		AxisDirection[0] = Vector3d(1.0, 0, 0);
 		AxisDirection[1] = Vector3d(0, 0, 1.0);
@@ -263,16 +260,15 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 		//压力传感器线程
 		active->PressureStep();
 		ControlCard::GetInstance().GetEncoderData(angle);
+		DataAcquisition::GetInstance().AcquisiteTorqueData(torque);
 		DataAcquisition::GetInstance().AcquisiteTensionData(elbow_pressure);
 		DataAcquisition::GetInstance().AcquisiteSixDemensionData(six_dim_force);
 		/***********new pull sensor **********************/
-		DataAcquisition::GetInstance().AcquisitePullAndTorqueData();
+		DataAcquisition::GetInstance().AcquisitePullSensorData();
 		double abs_shoulder_forward_pull = fabs(DataAcquisition::GetInstance().ShoulderForwardPull());
 		double abs_shoulder_backward_pull = fabs(DataAcquisition::GetInstance().ShoulderBackwardPull());
 		double abs_elbow_forward_pull = fabs(DataAcquisition::GetInstance().ElbowForwardPull());
 		double abs_elbow_backward_pull = fabs(DataAcquisition::GetInstance().ElbowBackwardPull());
-		torque[0] = DataAcquisition::GetInstance().ShoulderTorque();
-		torque[1] = DataAcquisition::GetInstance().ElbowTorque();
 		joint_value << angle[0] << "          " << angle[1] << std::endl;
 		torque_value << torque[0] << "          " << torque[1] << std::endl;
 		sixdim_force_value << six_dim_force[0] << "          " << six_dim_force[1] << "          " << six_dim_force[2] << "          " << six_dim_force[3]
@@ -352,15 +348,14 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 		//六维力线程
 		active->SixDimForceStep();
 		ControlCard::GetInstance().GetEncoderData(angle);
+		DataAcquisition::GetInstance().AcquisiteTorqueData(torque);
 		DataAcquisition::GetInstance().AcquisiteSixDemensionData(six_dim_force);
 		/***********new pull sensor **********************/
-		DataAcquisition::GetInstance().AcquisitePullAndTorqueData();
+		DataAcquisition::GetInstance().AcquisitePullSensorData();
 		double abs_shoulder_forward_pull = fabs(DataAcquisition::GetInstance().ShoulderForwardPull());
 		double abs_shoulder_backward_pull = fabs(DataAcquisition::GetInstance().ShoulderBackwardPull());
 		double abs_elbow_forward_pull = fabs(DataAcquisition::GetInstance().ElbowForwardPull());
 		double abs_elbow_backward_pull = fabs(DataAcquisition::GetInstance().ElbowBackwardPull());
-		torque[0] = DataAcquisition::GetInstance().ShoulderTorque();
-		torque[1] = DataAcquisition::GetInstance().ElbowTorque();
 		joint_value << angle[0] << "          " << angle[1] << std::endl;
 		torque_value << torque[0] << "          " << torque[1] << std::endl;
 		sixdim_force_value << six_dim_force[0] << "          " << six_dim_force[1] << "          " << six_dim_force[2] << "          " << six_dim_force[3]
@@ -518,7 +513,7 @@ void ActiveControl::TorqueStep() {
 	Vector2d vel;
 	VectorXd torque(5);
 
-	DataAcquisition::GetInstance().AcquisitePullAndTorqueData();
+	DataAcquisition::GetInstance().AcquisiteTorqueData();
 
 	//减偏置,0是肘，1是肩
 	//for (int i = 0; i < 2; ++i) {
@@ -835,7 +830,7 @@ void ActiveControl::MomentCalculation(double ForceVector, double& vel) {
 	six_dimensional_force_simulation(4) = six_dimforce[4];
 	six_dimensional_force_simulation(5) = six_dimforce[5];
 
-	MomentBalance(six_dimensional_force_simulation, angle, moment, is_left);
+	MomentBalance(six_dimensional_force_simulation, angle, moment);
 
 	//for (int i = 0; i < 5; ++i) {
 	//	v_moment(i) = moment[i];
@@ -875,7 +870,7 @@ void ActiveControl::SixDimForceMomentCalculation(double ForceVector[6], double v
 	six_dimensional_force_simulation(4) = ForceVector[4];
 	six_dimensional_force_simulation(5) = ForceVector[5];
 
-	MomentBalance(six_dimensional_force_simulation, angle, moment, is_left);
+	MomentBalance(six_dimensional_force_simulation, angle, moment);
 
 	for (int i = 0; i < 3; ++i) {
 		v_moment(i) = moment[i];
@@ -996,12 +991,8 @@ void ActiveControl::CalculatePlaneXY(short rangeX, short rangeY, double XY[2]) {
 		x = kPlaneMaxX;
 	}
 
-	if (is_left) {
-		XY[0] = x;
-	}
-	else {
-		XY[0] = kPlaneMaxX - x;
-	}
+	XY[0] = kPlaneMaxX - x;
+	//XY[0] = x;
 	XY[1] = kPlaneMaxY - y;
 
 	/*Pos << angle[0], angle[1];
@@ -1036,13 +1027,8 @@ void ActiveControl::CalculateRagXY(double XY[2]) {
 		x = kRagMaxX;
 	}
 
-	if (is_left) {
-		XY[0] = x;
-	}
-	else {
-		XY[0] = kPlaneMaxX - x;
-	}
-	
+	XY[0] = kPlaneMaxX - x;
+	//XY[0] = x;
 	XY[1] = kRagMaxY - y;
 }
 
