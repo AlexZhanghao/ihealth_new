@@ -12,7 +12,7 @@ const char *DataAcquisition::kPullSensorChannel = "dev2/ai0:3";
 //这里并没有把上面两个channel去掉，因为在boundarydetection中用到了它们
 const char *DataAcquisition::kPullAndTorqueChannel = "dev2/ai0:5";
 const char *DataAcquisition::kGripChannel = "dev2/ai6";
-const char *DataAcquisition::kSixDimensionForceChannel = "dev1/ai0:5";
+//const char *DataAcquisition::kSixDimensionForceChannel = "dev1/ai0:5";
 const char *DataAcquisition::kPressureForceChannel= "Dev3/ai1:2";
 const double DataAcquisition::kRawToReal = 2.0;
 
@@ -21,16 +21,16 @@ Eigen::Matrix<double, 6, 6> DataAcquisition::kTransformMatrix = MatrixXd::Zero(6
 DataAcquisition::DataAcquisition() {
 	int status;
 	//六维力
-	status = DAQmxCreateTask("", &s_task_handle);
-	status = DAQmxCreateAIVoltageChan(s_task_handle, kSixDimensionForceChannel, "",
-		DAQmx_Val_Diff, -10, 10, DAQmx_Val_Volts, NULL);
-	status = DAQmxCfgSampClkTiming(s_task_handle, NULL, 100, DAQmx_Val_Rising,
-		DAQmx_Val_ContSamps, 2);
+	//status = DAQmxCreateTask("", &s_task_handle);
+	//status = DAQmxCreateAIVoltageChan(s_task_handle, kSixDimensionForceChannel, "",
+	//	DAQmx_Val_Diff, -10, 10, DAQmx_Val_Volts, NULL);
+	//status = DAQmxCfgSampClkTiming(s_task_handle, NULL, 100, DAQmx_Val_Rising,
+	//	DAQmx_Val_ContSamps, 2);
 
-	status = DAQmxSetReadRelativeTo(s_task_handle, DAQmx_Val_MostRecentSamp);
-	status = DAQmxSetReadOffset(s_task_handle, 0);
-	status = DAQmxStartTask(s_task_handle);
-	status = DAQmxStopTask(s_task_handle);
+	//status = DAQmxSetReadRelativeTo(s_task_handle, DAQmx_Val_MostRecentSamp);
+	//status = DAQmxSetReadOffset(s_task_handle, 0);
+	//status = DAQmxStartTask(s_task_handle);
+	//status = DAQmxStopTask(s_task_handle);
 
 	//压力传感器
 	status = DAQmxCreateTask("", &p_task_handle);
@@ -87,15 +87,15 @@ void DataAcquisition::AcquisitePullAndTorqueData() {
 }
 
 void DataAcquisition::AcquisiteTensionData(double tension_output[2]) {
-	//TaskHandle taskHandle = 0;
+	TaskHandle taskHandle = 0;
 	int32 read = 0;
 	int status = 0;
 	double tension_data[2]{ 0 };
 	//status = DAQmxCreateTask("PressureDataTask", &taskHandle);
 	//status = DAQmxCreateAIVoltageChan(taskHandle, kPressureForceChannel, "PressureDataChannel", DAQmx_Val_RSE, -10, 10, DAQmx_Val_Volts, NULL);
-	//status = DAQmxCfgSampClkTiming(taskHandle, "OnboardClock", 1000, DAQmx_Val_Rising,DAQmx_Val_ContSamps, 2);
+	status = DAQmxCfgSampClkTiming(p_task_handle, "OnboardClock", 1000, DAQmx_Val_Rising,DAQmx_Val_ContSamps, 2);
 	//status = DAQmxStartTask(taskHandle);
-	status = DAQmxReadAnalogF64(p_task_handle, 1, 0.2, DAQmx_Val_GroupByScanNumber, tension_data, 2, &read, NULL);
+	//status = DAQmxReadAnalogF64(taskHandle, 1, 0.2, DAQmx_Val_GroupByScanNumber, tension_data, 2, &read, NULL);
 	//status = DAQmxStopTask(taskHandle);
 	//status = DAQmxClearTask(taskHandle);
 
