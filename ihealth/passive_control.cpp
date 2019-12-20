@@ -3,6 +3,7 @@
 #include <process.h> 
 #include<iostream>
 #include<fstream>
+#include "Matrix.h"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include "data_acquisition.h"
@@ -135,7 +136,8 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 		//是否开始运动
 		if (passive->in_move_status_) {
 			passive->MoveStep();
-			passive->SampleStep();
+			passive->CollectionStep();
+			//passive->SampleStep();
 		}
 		
 		loop_counter_in_thread++;
@@ -173,9 +175,25 @@ void PassiveControl::BeginMove(int index) {
 	if(is_busy_)
 		return;
 
-
 	// 取出示教所需要的数据
 	move_data_ = movement_set_.at(index);
+
+	//检查六维力数组和位置数组是否有值，如果没有就将它初始化，如果有的话就clear后再初始化
+	if (sum_data_.sum_positions[0].size() != 0 || sum_data_.sum_sixdemsional_force[0].size() != 0) {
+		for (int i = 0; i < 2; ++i) {
+			sum_data_.sum_positions[i].clear();
+		}
+		for (int j = 0; j < 6; ++j) {
+			sum_data_.sum_sixdemsional_force[j].clear();
+		}
+	}
+	//vector<double>k{ 500 };
+	//for (int i = 0; i < 2; ++i) {
+	//	sum_data_.sum_positions[i] = k;
+	//}
+	//for (int j = 0; j < 6; ++j) {
+	//	sum_data_.sum_sixdemsional_force[j] = k;
+	//}
 
 	//各项计数归零
 	loop_counter_in_thread = 0;
@@ -194,7 +212,7 @@ void PassiveControl::BeginMove(int index) {
 	
 	//打开电机，离合器
 	ControlCard::GetInstance().SetMotor(ControlCard::MotorOn);
-	ControlCard::GetInstance().SetClutch(ControlCard::ClutchOn);
+	//ControlCard::GetInstance().SetClutch(ControlCard::ClutchOn);
 
 	//关闭示教采集功能
 	in_record_status_ = false;
@@ -210,7 +228,7 @@ void PassiveControl::StopMove() {
 	//关闭电机
 	ControlCard::GetInstance().SetMotor(ControlCard::MotorOff);
 	//关闭离合器
-	ControlCard::GetInstance().SetClutch(ControlCard::ClutchOff);
+	//ControlCard::GetInstance().SetClutch(ControlCard::ClutchOff);
     //关闭线程
 	in_move_status_ = false;
 	is_exit_thread_ = true;
@@ -324,7 +342,6 @@ void PassiveControl::MoveStep() {
 		//APS_absolute_move(Axis[j], pos / ControlCard::Unit_Convert, 15 / ControlCard::Unit_Convert);
 		APS_ptp_v(Axis[j], option, pos / ControlCard::Unit_Convert, 15 / ControlCard::Unit_Convert, NULL);
 	}
-	
 
 	is_busy_ = true;
 }
@@ -334,6 +351,55 @@ void PassiveControl::SampleStep() {
 	ControlCard::GetInstance().GetEncoderData(joint_angle);
 	for (int i = 0; i < 2; i++) {
 		sample_data_.target_positions[i].push_back(joint_angle[i]);
+	}
+}
+
+void PassiveControl::CollectionStep() {
+	double joint_angle[2]{ 0 };
+	double sixdemional_force[6]{ 0 };
+	ControlCard::GetInstance().GetEncoderData(joint_angle);
+	DataAcquisition::GetInstance().AcquisiteSixDemensionData(sixdemional_force);
+	for (int i = 0; i < 2; i++) {
+		sum_data_.sum_positions[i].push_back(joint_angle[i]);
+	}
+	for (int j = 0; j < 6; ++j) {
+		sum_data_.sum_sixdemsional_force[j].push_back(sixdemional_force[j]);
+	}
+
+	//position_count++;
+	//force_count++;
+}
+
+void PassiveControl::GetMeanData(int total_times) {
+	for (int i = 0; i < sum_data_.sum_positions[0].size(); i++) {
+		for (int j = 0; j < 2; ++j) {
+			sum_data_.sum_positions[j][i] = sum_data_.sum_positions[j][i] / total_times;	
+		}
+		for (int k = 0; k < 6; ++k) {
+			sum_data_.sum_sixdemsional_force[k][i] = sum_data_.sum_sixdemsional_force[k][i] / total_times;
+		}
+	}
+}
+
+void PassiveControl::SixdemToBaseCoordinate() {
+	VectorXd sixdemsional_data(6);
+	double mean_angle[2] = { 0 };
+	for (int i = 0; i < sum_data_.sum_sixdemsional_force[0].size(); ++i) {
+		for (int j = 0; j < 6; ++j) {
+			sixdemsional_data[j] = sum_data_.sum_sixdemsional_force[j][i];
+		}
+		for (int k = 0; k < 2; k++) {
+			mean_angle[k] = sum_data_.sum_positions[k][i];
+		}
+
+		MSixdemToBaseCoordinate(sixdemsional_data, mean_angle, active_control_->is_left);
+
+		for (int p = 0; p < 6; ++p) {
+			active_control_->mean_force_and_position_.mean_sixdemsional_force[p].push_back(sixdemsional_data[p]);
+		}
+		for (int q = 0; q < 2; ++q) {
+			active_control_->mean_force_and_position_.mean_positions[q].push_back(mean_angle[q]);
+		}
 	}
 }
 
