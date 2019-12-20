@@ -38,7 +38,5 @@ public:
 
 	bool				m_isPlaying;
 
-	int m_total_times;
-
 	UINT_PTR	m_currenttimer;
 };

@@ -5,11 +5,6 @@
 #include<vector>
 #include "matrix.h"
 
-struct ActiveGravityCompensation {
-	std::vector<double> mean_positions[2];
-	std::vector<double> mean_sixdemsional_force[6];
-};
-
 class ActiveControl {
 public:
     ActiveControl();
@@ -38,8 +33,6 @@ public:
 	void SetShoulderSensitivity(double shoulder_senitivity);
 	//将力矩由主动关节换算到所有关节
 	void ActiveTorqueToAllTorque(double torque[2], double alltorque[5]);
-	//获取六维力传感器的偏置
-	void GetSixdemPolarization();
 
 public:
 	//输出肩肘部压力转化后的力矩数据输出到txt文件
@@ -47,17 +40,17 @@ public:
 	//把力矩传感器测得的数据输出到txt文件
 	void TorqueExport();
 	boundaryDetection detect;
-	ActiveGravityCompensation mean_force_and_position_;
+	
 
 public:
 	bool is_exit_thread_;
 	bool is_moving_;
 	//压力传感器是否使能，注意这里并不只是单纯的将它关闭，而是切换到了纯六维力模式
 	bool m_pressure_sensor_enable;
+	double six_dimension_offset_[6];
 	double elbow_offset[2];
 	double torque_offset[2];
 	double cycle_time_in_second_;
-	int is_left;
 
 private:
 	void MoveInNewThread(int id);
@@ -84,8 +77,8 @@ private:
 
 	double shoulder_angle_max_;
 	double elbow_angle_max_;
+	int is_left;
 	static double six_dimforce[6];
-	static double six_dimension_offset_[6];
 	double joint_angle[2];
 	static double elbow_Sensitivity_;
 	static double shoulder_Sensitivity_;

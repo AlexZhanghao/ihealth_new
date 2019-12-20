@@ -34,7 +34,6 @@ static const int kRagMaxX = 710;
 static const int kRagMaxY = 596;
 
 double ActiveControl::six_dimforce[6]{ 0 };
-double ActiveControl::six_dimension_offset_[6]{ 0 };
 double ActiveControl::elbow_Sensitivity_ = 0;
 double ActiveControl::shoulder_Sensitivity_ = 0;
 
@@ -171,6 +170,18 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 	int paitent_id = export_data->paitent_id;
 	UINT start, end;
 	start = GetTickCount();
+	// 求六维力传感器的偏置
+	double sum[6]{ 0.0 };
+	double buf[6]{ 0.0 };
+	for (int i = 0;i < 10;++i) {
+		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
+		for (int j = 0;j < 6;++j) {
+			sum[j] += buf[j];
+		}
+	}
+	for (int i = 0;i < 6;++i) {
+		active->six_dimension_offset_[i] = sum[i] / 10;
+	}
 
 	//求压力传感器的偏置
 	double two_arm_buf[2]{ 0.0 };
@@ -287,6 +298,18 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 	int paitent_id = export_data->paitent_id;
 	UINT start, end;
 	start = GetTickCount();
+	// 求六维力传感器的偏置
+	double sum[6]{ 0.0 };
+	double buf[6]{ 0.0 };
+	for (int i = 0; i < 10; ++i) {
+		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
+		for (int j = 0; j < 6; ++j) {
+			sum[j] += buf[j];
+		}
+	}
+	for (int i = 0; i < 6; ++i) {
+		active->six_dimension_offset_[i] = sum[i] / 10;
+	}
 
 	DataAcquisition::GetInstance().StopSixDemTask();
 	DataAcquisition::GetInstance().StartSixDemTask();
@@ -1021,21 +1044,6 @@ void ActiveControl::CalculateRagXY(double XY[2]) {
 	}
 	
 	XY[1] = kRagMaxY - y;
-}
-
-void ActiveControl::GetSixdemPolarization() {
-	// 求六维力传感器的偏置
-	double sum[6]{ 0.0 };
-	double buf[6]{ 0.0 };
-	for (int i = 0; i < 10; ++i) {
-		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
-		for (int j = 0; j < 6; ++j) {
-			sum[j] += buf[j];
-		}
-	}
-	for (int i = 0; i < 6; ++i) { 
-		six_dimension_offset_[i] = sum[i] / 10;
-	}
 }
 
 void ActiveControl::SetDamping(float FC)
