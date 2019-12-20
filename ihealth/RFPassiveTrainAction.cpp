@@ -51,6 +51,10 @@ void OnTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
 			} else {
 				RFMainWindow::MainWindow->SetPassiveTrainProgress(0, FormatTimeValue(action->m_curmedia.train.timelen), false);
 				action->StopPlay();
+
+				RFMainWindow::MainWindow->m_robot.PassiveMeanData(action->m_total_times);
+				RFMainWindow::MainWindow->m_robot.PassiveToBaseCoordinate();
+				RFMainWindow::MainWindow->m_robot.PassiveClearSixdemAndAngle();
 			}
 		}
 	}
@@ -64,7 +68,7 @@ RFPassiveTrainAction::RFPassiveTrainAction(void) {
 	m_timeplay = 0;
 	m_isPlaying = false;
 	m_currenttimer = 0;
-
+	m_total_times = 0;
 	m_movement_createtime = 0;
 }
 
@@ -75,6 +79,8 @@ void RFPassiveTrainAction::StartPlay(std::list<MEDIA>& medias, bool orderplay)
 	if (medias.size() < 1) {
 		return;
 	}
+
+	m_total_times = medias.size();
 
 	m_medias_old.clear();
 	m_medias.clear();
@@ -89,7 +95,7 @@ void RFPassiveTrainAction::StartPlay(std::list<MEDIA>& medias, bool orderplay)
 	} else {
 		m_curmedia = PopRandomMedia();
 	}
-	
+
 	m_currenttimer = ::SetTimer(NULL, RF_TIMER_ID, RF_TIMER_ELAPSE, (TIMERPROC)OnTimer);
 }
 
