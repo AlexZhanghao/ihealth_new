@@ -54,6 +54,7 @@ void OnTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
 
 				RFMainWindow::MainWindow->m_robot.PassiveMeanData(action->m_total_times);
 				RFMainWindow::MainWindow->m_robot.PassiveToBaseCoordinate();
+				RFMainWindow::MainWindow->m_robot.PassiveClearSixdemAndAngle();
 			}
 		}
 	}

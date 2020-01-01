@@ -157,10 +157,10 @@ struct LoadPatientTrainInfoResult
 #define RF_EMG_TRAIN_MODE 2
 #define RF_EYE_TRAIN_MODE 3
 
-#define RF_TRAINTYPE_STRING_ZD _T("ï¿½ï¿½ï¿½ï¿½Ñµï¿½ï¿½")
-#define RF_TRAINTYPE_STRING_BD _T("ï¿½ï¿½ï¿½ï¿½Ñµï¿½ï¿½")
-#define RF_TRAINTYPE_STRING_YD _T("ï¿½Û¶ï¿½Ñµï¿½ï¿½")
-#define RF_TRAINTYPE_STRING_EMG _T("EMGÑµï¿½ï¿½")
+#define RF_TRAINTYPE_STRING_ZD _T("Ö÷¶¯")
+#define RF_TRAINTYPE_STRING_BD _T("±»¶¯")
+#define RF_TRAINTYPE_STRING_YD _T("ÑÛ¶¯")
+#define RF_TRAINTYPE_STRING_EMG _T("¼¡ÈâµçÐÅºÅ")
 
 struct PatientTrainDetails
 {

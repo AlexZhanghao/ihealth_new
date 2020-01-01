@@ -260,3 +260,7 @@ void Robot::PassiveMeanData(int total_times) {
 void Robot::PassiveToBaseCoordinate() {
 	pasvMode->SixdemToBaseCoordinate();
 }
+
+void Robot::PassiveClearSixdemAndAngle() {
+	pasvMode->ClearSixdemAndAngle();
+}

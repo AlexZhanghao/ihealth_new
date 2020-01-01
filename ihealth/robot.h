@@ -40,6 +40,8 @@ public:
 	void PassiveMeanData(int  total_times);
 	//将六维力旋转到基坐标
 	void PassiveToBaseCoordinate();
+	//清除六维力和角度的数据
+	void PassiveClearSixdemAndAngle();
 
 	/************************************************************************/
 	/*                           主动模式接口                                */

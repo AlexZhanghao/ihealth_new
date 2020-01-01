@@ -17,8 +17,8 @@ struct PassiveData {
 
 //这个结构体用于记录被动运动时的六维力和角度
 struct SixDimensionalForceAndPosition {
-	std::vector<double> sum_positions[2];//存储位置数据，在运动结束后取平均值
-	std::vector<double> sum_sixdemsional_force[6];//存储运动时的六维力数据，在运动结束后取平均值
+	std::vector<double> positions[2];//存储位置数据，在运动结束后取平均值
+	std::vector<double> sixdemsional_force[6];//存储运动时的六维力数据，在运动结束后取平均值
 };
 
 // 控制被动运动的类，控制被动运动的录制，以及根据录制好的被动
@@ -39,6 +39,8 @@ public:
 	void SampleStep();
 	//采集六维力和角度数据用做在主动运动时的重力补偿
 	void CollectionStep();
+	//将被动运动的临时数据导入到总数据中
+	void LeadTemporaryToSum();
 	//用于将获取的数据求平均值，这里要输入一个值作为总次数
 	void GetMeanData(int total_times);
 	//用于将采集到的六维力数据转换到基坐标系上面
@@ -61,6 +63,8 @@ public:
 	void StoreCurrentRecord();
 	// 清除被动运动序列的数据
 	void ClearMovementSet();
+	// 清除六维力和角度的数据
+	void ClearSixdemAndAngle();
 
 	//在示教后将曲线置换成正弦曲线
 	void CruveSmoothing();
@@ -75,6 +79,8 @@ public:
 	void InterpolationTraceExport();//插值后的轨迹
 	void PracticalTraceExport();//实际的轨迹
 	void TeachPosData();//录制的位置
+	void GravityAndAngleExport();//导出重力和角度数据
+	void GetFileName(std::string path, std::vector<std::string>& filesName);
 
 	// 正在进行录制或者被动运动
 	bool IsBusy();
@@ -100,6 +106,7 @@ private:
 	PassiveData record_data_;
 	PassiveData move_data_;
 	PassiveData sample_data_;
+	SixDimensionalForceAndPosition temporary_data_;
 	SixDimensionalForceAndPosition sum_data_;
 
 	ActiveControl *active_control_ = nullptr;

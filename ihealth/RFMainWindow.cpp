@@ -3403,8 +3403,8 @@ bool RFMainWindow::OnEvaluation1(void *pParam)
 
 	m_evalution_type = 1;
 	std::list<EvaluationData> datas;
-	RFEvaluationData::get()->Load(1);
-	RFEvaluationData::get()->setCurPage(0);
+	//RFEvaluationData::get()->Load(1);
+	//RFEvaluationData::get()->setCurPage(0);
 	UpdateEvaluationNumber(0);
 	UpdateEvaluationPage(datas);
 	ShowEvaluationHistoryPage();
@@ -3429,8 +3429,8 @@ bool RFMainWindow::OnEvaluation2(void *pParam)
 
 	m_evalution_type = 2;
 	std::list<EvaluationData> datas;
-	RFEvaluationData::get()->Load(2);
-	RFEvaluationData::get()->setCurPage(0);
+	//RFEvaluationData::get()->Load(2);
+	//RFEvaluationData::get()->setCurPage(0);
 	UpdateEvaluationNumber(0);
 	UpdateEvaluationPage(datas);
 	ShowEvaluationHistoryPage();

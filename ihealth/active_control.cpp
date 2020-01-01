@@ -342,7 +342,7 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 		torque_value << torque[0] << "          " << torque[1] << std::endl;
 		sixdim_force_value << six_dim_force[0] << "          " << six_dim_force[1] << "          " << six_dim_force[2] << "          " << six_dim_force[3]
 			<< "          " << six_dim_force[4] << "          " << six_dim_force[5] << std::endl;
-		pull_force_value << abs_elbow_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_shoulder_backward_pull << endl;
+		pull_force_value << abs_shoulder_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_elbow_backward_pull << endl;
 	}
 	joint_value.close();
 	torque_value.close();

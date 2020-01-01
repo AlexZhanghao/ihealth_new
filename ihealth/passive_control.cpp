@@ -116,7 +116,7 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 	sixdim_force_value << six_dim_force[0] << "          " << six_dim_force[1] << "          " << six_dim_force[2] << "          " << six_dim_force[3]
 						<< "          " << six_dim_force[4] << "          " << six_dim_force[5] << std::endl;
 	sum_pressure_force_value<< elbow_pressure[0] * 10- elbow_pressure[1] * 10<<endl;
-	pull_force_value << abs_elbow_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_shoulder_backward_pull << endl;
+	pull_force_value << abs_shoulder_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_elbow_backward_pull << endl;
 		
 		if (is_exit_thread_) {
 			joint_value.close();
@@ -132,7 +132,7 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 			spdlog::info("{} ready into record thread", __LINE__);
 			passive->RecordStep();
 		}
-
+    
 		//是否开始运动
 		if (passive->in_move_status_) {
 			passive->MoveStep();
@@ -142,10 +142,14 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 		
 		loop_counter_in_thread++;
 	}
+
 	if (passive->is_teach) {
 		//passive->TeachPosData();
 		passive->CruveSmoothing();
 	}
+
+	//检查六维力数组和位置数组是否有值，如果没有就将它初始化，如果有的话就clear后再初始化
+	passive->LeadTemporaryToSum();
 
 	//passive->InterpolationTraceExport();
 	//passive->PracticalTraceExport();
@@ -157,6 +161,15 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 void PassiveControl::ClearMovementSet()
 {
 	movement_set_.clear();
+}
+
+void PassiveControl::ClearSixdemAndAngle() {
+	for (int i = 0; i < 2; ++i) {
+		sum_data_.positions[i].clear();
+	}
+	for (int j = 0; j < 6; ++j) {
+		sum_data_.sixdemsional_force[j].clear();
+	}
 }
 
 void PassiveControl::StoreMovement(const PassiveData& movement) {
@@ -179,21 +192,14 @@ void PassiveControl::BeginMove(int index) {
 	move_data_ = movement_set_.at(index);
 
 	//检查六维力数组和位置数组是否有值，如果没有就将它初始化，如果有的话就clear后再初始化
-	if (sum_data_.sum_positions[0].size() != 0 || sum_data_.sum_sixdemsional_force[0].size() != 0) {
+	if (temporary_data_.positions[0].size() != 0 || temporary_data_.sixdemsional_force[0].size() != 0) {
 		for (int i = 0; i < 2; ++i) {
-			sum_data_.sum_positions[i].clear();
+			temporary_data_.positions[i].clear();
 		}
 		for (int j = 0; j < 6; ++j) {
-			sum_data_.sum_sixdemsional_force[j].clear();
+			temporary_data_.sixdemsional_force[j].clear();
 		}
 	}
-	//vector<double>k{ 500 };
-	//for (int i = 0; i < 2; ++i) {
-	//	sum_data_.sum_positions[i] = k;
-	//}
-	//for (int j = 0; j < 6; ++j) {
-	//	sum_data_.sum_sixdemsional_force[j] = k;
-	//}
 
 	//各项计数归零
 	loop_counter_in_thread = 0;
@@ -360,23 +366,43 @@ void PassiveControl::CollectionStep() {
 	ControlCard::GetInstance().GetEncoderData(joint_angle);
 	DataAcquisition::GetInstance().AcquisiteSixDemensionData(sixdemional_force);
 	for (int i = 0; i < 2; i++) {
-		sum_data_.sum_positions[i].push_back(joint_angle[i]);
+		temporary_data_.positions[i].push_back(joint_angle[i]);
 	}
 	for (int j = 0; j < 6; ++j) {
-		sum_data_.sum_sixdemsional_force[j].push_back(sixdemional_force[j]);
+		temporary_data_.sixdemsional_force[j].push_back(sixdemional_force[j]);
+	}
+}
+
+void PassiveControl::LeadTemporaryToSum() {
+	int n = temporary_data_.sixdemsional_force[0].size();
+
+	if (sum_data_.positions[0].size()==0 || sum_data_.sixdemsional_force[0].size()==0) {
+		vector<double> initialize(n);
+		for (int i = 0; i < 2; ++i) {
+			sum_data_.positions[i] = initialize;
+		}
+		for (int j = 0; j < 6; ++j) {
+			sum_data_.sixdemsional_force[j] = initialize;
+		}
 	}
 
-	//position_count++;
-	//force_count++;
+	for (int i = 0; i < n; ++i) {
+		for (int j = 0; j < 2; ++j) {
+			sum_data_.positions[j][i] += temporary_data_.positions[j][i];
+		}
+		for (int k = 0; k < 6; ++k) {
+			sum_data_.sixdemsional_force[k][i] += temporary_data_.sixdemsional_force[k][i];
+		}
+	}
 }
 
 void PassiveControl::GetMeanData(int total_times) {
-	for (int i = 0; i < sum_data_.sum_positions[0].size(); i++) {
+	for (int i = 0; i < sum_data_.positions[0].size(); i++) {
 		for (int j = 0; j < 2; ++j) {
-			sum_data_.sum_positions[j][i] = sum_data_.sum_positions[j][i] / total_times;	
+			sum_data_.positions[j][i] = sum_data_.positions[j][i] / total_times;	
 		}
 		for (int k = 0; k < 6; ++k) {
-			sum_data_.sum_sixdemsional_force[k][i] = sum_data_.sum_sixdemsional_force[k][i] / total_times;
+			sum_data_.sixdemsional_force[k][i] = sum_data_.sixdemsional_force[k][i] / total_times;
 		}
 	}
 }
@@ -384,12 +410,12 @@ void PassiveControl::GetMeanData(int total_times) {
 void PassiveControl::SixdemToBaseCoordinate() {
 	VectorXd sixdemsional_data(6);
 	double mean_angle[2] = { 0 };
-	for (int i = 0; i < sum_data_.sum_sixdemsional_force[0].size(); ++i) {
+	for (int i = 0; i < sum_data_.sixdemsional_force[0].size(); ++i) {
 		for (int j = 0; j < 6; ++j) {
-			sixdemsional_data[j] = sum_data_.sum_sixdemsional_force[j][i];
+			sixdemsional_data[j] = sum_data_.sixdemsional_force[j][i];
 		}
 		for (int k = 0; k < 2; k++) {
-			mean_angle[k] = sum_data_.sum_positions[k][i];
+			mean_angle[k] = sum_data_.positions[k][i];
 		}
 
 		MSixdemToBaseCoordinate(sixdemsional_data, mean_angle, active_control_->is_left);
@@ -401,6 +427,7 @@ void PassiveControl::SixdemToBaseCoordinate() {
 			active_control_->mean_force_and_position_.mean_positions[q].push_back(mean_angle[q]);
 		}
 	}
+	GravityAndAngleExport();
 }
 
 void PassiveControl::SetHWND(HWND hWnd) {
@@ -471,4 +498,38 @@ void PassiveControl::PracticalTraceExport() {
 		dataFile3 << sample_data_.target_positions[0][i] << "        " << sample_data_.target_positions[1][i] << endl;
 	}
 	dataFile3.close();
+}
+
+void PassiveControl::GravityAndAngleExport() {
+	string path = "..\\..\\resource\\grivityandangle"; //指定文件目录
+	vector<string> filesName;
+	GetFileName(path, filesName);
+	int k = filesName.size();
+	string p = to_string(k);
+	ofstream dataFile4;
+	dataFile4.open("..\\..\\resource\\grivityandangle\\practice_trace_data_" + p + ".txt", ofstream::app);
+	dataFile4 << "girvity1" << "          " << "girvity2" << "          " << "girvity3" << "          " << "girvity4" << "          " <<
+		"girvity5" << "          " << "girvity6" << "          " << "shoulder_angle" << "          " << "elbow_angle" << endl;
+	for (int i = 0; i < active_control_->mean_force_and_position_.mean_sixdemsional_force[0].size(); ++i) {
+		dataFile4 << active_control_->mean_force_and_position_.mean_sixdemsional_force[0][i] << "        " << active_control_->mean_force_and_position_.mean_sixdemsional_force[1][i] << "        " <<
+			active_control_->mean_force_and_position_.mean_sixdemsional_force[2][i] << "        " << active_control_->mean_force_and_position_.mean_sixdemsional_force[3][i] << "        " <<
+			active_control_->mean_force_and_position_.mean_sixdemsional_force[4][i] << "        " << active_control_->mean_force_and_position_.mean_sixdemsional_force[5][i] << "        " <<
+			active_control_->mean_force_and_position_.mean_positions[0][i] << "        " << active_control_->mean_force_and_position_.mean_positions[1][i] << endl;
+	}
+	dataFile4.close();
+}
+
+void PassiveControl::GetFileName(string path, vector<string>& filesName) {
+	long   hFile = 0;                    //文件句柄 
+	struct _finddata_t fileinfo;        //定义文件信息结构体
+	string p;
+	if ((hFile = _findfirst(p.assign(path).append("\\*").c_str(), &fileinfo)) != -1) //使用函数_findfirst()打开文件并获取第一个文件名
+	{
+		do
+		{
+			if (strcmp(fileinfo.name, ".") != 0 && strcmp(fileinfo.name, "..") != 0)  //"."表示当前目录，".."表示父目录
+				filesName.push_back(fileinfo.name);
+		} while (_findnext(hFile, &fileinfo) == 0);      //使用函数_findnext()继续获取其他文件名
+		_findclose(hFile);              //使用函数_findclose()关闭文件夹
+	}
 }
