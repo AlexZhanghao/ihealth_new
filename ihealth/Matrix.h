@@ -306,12 +306,12 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motor
 	if (is_left) {
 		R32 <<
 			cos(joint_angle(2)), -sin(joint_angle(2)), 0,
-			0, 0, 1,
+			0, 0, -1,
 			sin(joint_angle(2)), cos(joint_angle(2)), 0;
 		R21 <<
 			cos(joint_angle(1)), -sin(joint_angle(1)), 0,
-			0, 0, -1,
-			sin(joint_angle(1)), cos(joint_angle(1)), 0;
+			0, 0, 1,
+			-sin(joint_angle(1)), cos(joint_angle(1)), 0;
 	}
 	else {
 		R32 <<
@@ -336,6 +336,7 @@ void MomentBalance(const MatrixBase<DerivedA>& shoulderforcevector, double motor
 	//	0, 0, 1;
 	VectorToMatrix(pa1_3, P1_3);
 	VectorToMatrix(sixdim_to_coordinate3, Sixdim_To_Coordinate3);
+	//这个是压力传感器时代到坐标3的旋转
 	Tf1_3 <<
 		RF13, to_zero,
 		P1_3*RF13, RF13;
