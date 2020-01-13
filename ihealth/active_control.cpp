@@ -380,6 +380,7 @@ void ActiveControl::StartMove(int id) {
 	//ControlCard::GetInstance().SetClutch(ControlCard::ClutchOn);
 	is_moving_ = true;
 	MoveInNewThread(id);
+	//detect.test = 1;
 }
 
 void ActiveControl::StopMove() {

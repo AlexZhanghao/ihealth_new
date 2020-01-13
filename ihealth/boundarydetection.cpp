@@ -23,6 +23,9 @@ const char *pull_sensor_channel = "Dev2/ai0:3";
 
 double boundaryDetection::shoulder_torque = 0.0;
 double boundaryDetection::elbow_torque = 0.0;
+//bool boundaryDetection::test = false;
+
+UINT_PTR boundaryDetection::BoxDetectTimer = NULL;
 
 
 HHOOK   hHook;
@@ -239,6 +242,9 @@ void boundaryDetection::check() {
 	double abs_shoulder_backward_pull = fabs(DataAcquisition::GetInstance().ShoulderBackwardPull());
 	double abs_elbow_forward_pull = fabs(DataAcquisition::GetInstance().ElbowForwardPull());
 	double abs_elbow_backward_pull = fabs(DataAcquisition::GetInstance().ElbowBackwardPull());
+	// if (test) {
+	// 	abs_shoulder_forward_pull = PullLimit + 1;
+	// }
 	if (abs_shoulder_forward_pull > PullLimit || abs_shoulder_backward_pull > PullLimit ||
 		abs_elbow_forward_pull > PullLimit || abs_elbow_backward_pull > PullLimit) {
 		// 同样需要先把动作暂停下来
@@ -251,10 +257,13 @@ void boundaryDetection::check() {
 		msg += to_wstring(abs_elbow_forward_pull);
 		msg += (_T(", F4="));
 		msg += to_wstring(abs_elbow_backward_pull);
-		msg += (_T("。"));
-		// 然后显示一个MessageBox去提示复位
+		//msg += (_T("。"));
+		// 然后显示一个MessageBox去提示停止，这里设置一个计时器
+		StartBoxCloseTimer();
 		hHook = SetWindowsHookEx(WH_CBT, (HOOKPROC)CBTHookProc, NULL, GetCurrentThreadId());
 		int ret = ::MessageBox(m_hWnd, msg.c_str(), _T("拉力保护"), MB_OK | MB_ICONEXCLAMATION);
+		KillBoxCloseTimer();
+		//test = false;
 		if (ret == IDOK) {
 			//ControlCard::GetInstance().ResetPosition();
 			m_pRobot->ActiveStopMove();
@@ -278,3 +287,25 @@ void boundaryDetection::check() {
  void boundaryDetection::ReturnGlobalDetection(int status) {
 	 is_global_detection_ = status;
  }
+
+void CALLBACK TimerProc(HWND hWnd, UINT nMsg, UINT nTimerid, DWORD dwTime) {
+	 HANDLE pullprotectWnd = ::FindWindowEx(NULL, NULL, NULL, _T("拉力保护"));
+	 //HANDLE hWnd = ::GetForegroundWindow();
+	 if (pullprotectWnd)
+	 {
+		 //TRACE("发现了MyMessageBox窗口\n");
+		 ::EndDialog((HWND)pullprotectWnd, IDNO);
+	 }
+ }
+
+ void boundaryDetection::StartBoxCloseTimer(){
+	 BoxDetectTimer=::SetTimer(NULL, NULL, 3000, &TimerProc);
+ }
+
+void boundaryDetection::KillBoxCloseTimer(){
+	if (BoxDetectTimer != NULL) {
+		::KillTimer(NULL, BoxDetectTimer);
+		BoxDetectTimer = NULL;
+	}
+	m_pRobot->ActiveStopMove();
+}
