@@ -52,9 +52,9 @@ void OnTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
 				RFMainWindow::MainWindow->SetPassiveTrainProgress(0, FormatTimeValue(action->m_curmedia.train.timelen), false);
 				action->StopPlay();
 
-				RFMainWindow::MainWindow->m_robot.PassiveMeanData(action->m_total_times);
-				RFMainWindow::MainWindow->m_robot.PassiveToBaseCoordinate();
-				RFMainWindow::MainWindow->m_robot.PassiveClearSixdemAndAngle();
+				//RFMainWindow::MainWindow->m_robot.PassiveMeanData(action->m_total_times);
+				//RFMainWindow::MainWindow->m_robot.PassiveToBaseCoordinate();
+				//RFMainWindow::MainWindow->m_robot.PassiveClearSixdemAndAngle();
 			}
 		}
 	}
@@ -208,7 +208,7 @@ MEDIA RFPassiveTrainAction::PopOrderMedia()
 
 	if (RFPassiveTrain::get()->m_robot_indexs.find(media.train.id) != RFPassiveTrain::get()->m_robot_indexs.end()) {
 		int index = RFPassiveTrain::get()->m_robot_indexs[media.train.id];
-		RFMainWindow::MainWindow->m_robot.PassiveStopMove();
+		RFMainWindow::MainWindow->m_robot.PassiveStopMove(); 
 		::Sleep(300U);
 		RFMainWindow::MainWindow->m_robot.PassiveStartMove(index);
 	} else {

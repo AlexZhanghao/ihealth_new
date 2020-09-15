@@ -161,7 +161,8 @@ function getHeight() {
 };
 
 function getScore() {
-	return scores	
+	var a = scores
+	return 	a
 }
 
 // 控制手运动到x, y
@@ -195,6 +196,7 @@ document.onkeydown = function(event) {
 	}
 }
 */
+
 
 
 

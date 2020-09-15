@@ -47,7 +47,7 @@ public:
 	//把力矩传感器测得的数据输出到txt文件
 	void TorqueExport();
 	boundaryDetection detect;
-	ActiveGravityCompensation mean_force_and_position_;
+	static ActiveGravityCompensation mean_force_and_position_;
 
 public:
 	bool is_exit_thread_;
@@ -58,6 +58,7 @@ public:
 	double torque_offset[2];
 	double cycle_time_in_second_;
 	int is_left;
+	std::string m_score;
 
 private:
 	void MoveInNewThread(int id);

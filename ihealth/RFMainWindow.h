@@ -326,7 +326,6 @@ public:
 	void		StopEVDetect();
 	void		SaveEVDataToDB();
 
-
 	CPaintManagerUI m_pm;
 	static RFMySQLThread*	DBThread;
 	static CUIThread*		UIThread;

@@ -6901,6 +6901,15 @@ void RFMainWindow::StopGameRecord()
 }
 
 
+
+std::string wstring2string(const std::wstring& ws)
+{
+	_bstr_t t = ws.c_str();
+	char* pchar = (char*)t;
+	std::string result = pchar;
+	return result;
+}
+
 int temp_counter = 0;
 void OnActiveGameDetectTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime)
 {
@@ -6963,6 +6972,9 @@ void OnActiveGameDetectTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTim
 		std::wstring rag_move = _T("selfmove");
 		rag_move += xy;
 		game_webkit->RunJS(rag_move);
+		std::wstring wscores= game_webkit->RunJS( _T("getScore();"));
+		std::string _scores = wstring2string(wscores);
+		RFMainWindow::MainWindow->m_robot.activeCtrl->m_score = _scores;
 	} else if (gameType == RF_GAME_NAME_CLEAN_WINDOW) {
 		// 擦窗户
 		double pos[2];
@@ -7125,6 +7137,7 @@ void RFMainWindow::StartActiveGameDetect()
 	active_timer = 0;
 
 	s_activeGameDetectTimer = ::SetTimer(NULL, 999, 200U, (TIMERPROC)OnActiveGameDetectTimer);
+	
 
 	// 开了另外一个线程根据肩部和肘部的角度去计算飞机应该在的位置，现在我们直接停掉这个功能
 	//m_robotEvent.Start(800, 681);

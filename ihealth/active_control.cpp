@@ -33,6 +33,8 @@ static const int kPlaneMaxY = 601;
 static const int kRagMaxX = 710;
 static const int kRagMaxY = 596;
 
+ActiveGravityCompensation ActiveControl::mean_force_and_position_ ;
+
 double ActiveControl::six_dimforce[6]{ 0 };
 double ActiveControl::six_dimension_offset_[6]{ 0 };
 double ActiveControl::elbow_Sensitivity_ = 0;
@@ -71,6 +73,7 @@ ActiveControl::ActiveControl() {
 	is_moving_ = false;
 	m_pressure_sensor_enable = true;
 	LoadParamFromFile();
+	m_score = "";
 }
 
 void ActiveControl::LoadParamFromFile() {
@@ -216,6 +219,7 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 	ofstream sixdim_force_value(pathname + paitent_info + "sixdim_force_" + ch + ".txt", ios::app | ios::out);
 	ofstream sum_pressure_force_value(pathname + paitent_info + "sum_pressure_force_" + ch + ".txt", ios::app | ios::out);
 	ofstream pull_force_value(pathname + paitent_info + "pull_force_" + ch + ".txt", ios::app | ios::out);
+	ofstream scores(pathname + paitent_info + "socres" + ch + ".txt", ios::app | ios::out);
 	double angle[2]{ 0 };
 	double torque[2]{ 0 };
 	double elbow_pressure[2]{ 0 };
@@ -229,6 +233,7 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 	sixdim_force_value << " fx(N) " << " fy(N) " << " fz(N) " << " tx(N.m) " << " ty(N.m) " << " tz(N.m) " << endl;
 	sum_pressure_force_value << "F>0表示肘曲" << "F<0表示肘伸" << endl;
 	pull_force_value << " shoulder_forward " << " shoulder_backward " << " elbow_forward " << " elbow_backward " << endl;
+	scores << " socres" << endl;
 	while (true) {
 		if (active->is_exit_thread_) {
 			break;
@@ -268,13 +273,14 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 			<< "          " << six_dim_force[4] << "          " << six_dim_force[5] << std::endl;
 		sum_pressure_force_value << elbow_pressure[0] * 10 - elbow_pressure[1] * 10 << endl;
 		pull_force_value << abs_shoulder_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_elbow_backward_pull << endl;
-
+		scores << active->m_score << endl;
 	}
 	joint_value.close();
 	torque_value.close();
 	sixdim_force_value.close();
 	sum_pressure_force_value.close();
 	pull_force_value.close();
+	scores.close();
 	//active->MomentExport();
 	//active->TorqueExport();
 	//std::cout << "ActiveMoveThreadWithPressure Thread ended." << std::endl;
@@ -299,6 +305,7 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 	ofstream torque_value(pathname + paitent_info + "torque_" + ch + "(只有六维力模式)" + ".txt", ios::app | ios::out);
 	ofstream sixdim_force_value(pathname + paitent_info + "sixdim_force_" + ch + "(只有六维力模式)" + ".txt", ios::app | ios::out);
 	ofstream pull_force_value(pathname + paitent_info + "pull_force_" + ch + ".txt", ios::app | ios::out);
+	ofstream scores(pathname + paitent_info + "socres" + ch + "(只有六维力模式)" + ".txt", ios::app | ios::out);
 	double angle[2]{ 0 };
 	double torque[2]{ 0 };
 	double six_dim_force[6]{ 0 };
@@ -310,6 +317,7 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 		<< "  elbow(N.m)  " << endl;
 	sixdim_force_value << " fx(N) " << " fy(N) " << " fz(N) " << " tx(N.m) " << " ty(N.m) " << " tz(N.m) " << endl;
 	pull_force_value << " shoulder_forward " << " shoulder_backward " << " elbow_forward " << " elbow_backward " << endl;
+	scores << " socres" << endl;
 	while (true) {
 		if (active->is_exit_thread_) {
 			break;
@@ -343,11 +351,13 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 		sixdim_force_value << six_dim_force[0] << "          " << six_dim_force[1] << "          " << six_dim_force[2] << "          " << six_dim_force[3]
 			<< "          " << six_dim_force[4] << "          " << six_dim_force[5] << std::endl;
 		pull_force_value << abs_shoulder_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_elbow_backward_pull << endl;
+		scores << active->m_score << endl;
 	}
 	joint_value.close();
 	torque_value.close();
 	sixdim_force_value.close();
 	pull_force_value.close();
+	scores.close();
 	//active->MomentExport();
 	//active->TorqueExport();
 	//std::cout << "ActiveMoveThread Thread ended." << std::endl;
@@ -396,6 +406,21 @@ void ActiveControl::Step() {
 	double filtedData[6] = { 0 };
 	double bias[6] = { 0 };
 	double sub_bias[6] = { 0 };
+
+	//double a[10][6];
+	//double b[6];
+	//for (int i = 0; i < 10; ++i) {
+	//	DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
+	//	for (int j = 0; j < 6; ++j) {
+	//		a[i][j] = readings[j];
+	//	}
+	//}
+	//for (int i = 0; i < 10; ++i) {
+	//	for (int j = 0; j < 6; ++j) {
+	//		b[j] += a[i][j];
+	//	}
+	//}
+	//for (int i = 0; i < 6; ++i) b[i] /= 10;
 
 	DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
 

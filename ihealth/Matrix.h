@@ -441,10 +441,10 @@ void MSixdemToBaseCoordinate(MatrixBase<DerivedA>& sixdemdata, double motorangle
 		Sixdim_To_Coordinate3*sixdim_rotation, sixdim_rotation;
 	TR32 <<
 		R32, to_zero,
-		P32*R32, P32;
+		P32*R32, R32;
 	TR21 <<
 		R21, to_zero,
-		P21*R21, P21;
+		P21*R21, R21;
 
 	sixdemdata = sixdim_transfer * sixdemdata;
 	sixdemdata = TR32 * sixdemdata;

@@ -149,7 +149,10 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 	}
 
 	//检查六维力数组和位置数组是否有值，如果没有就将它初始化，如果有的话就clear后再初始化
-	passive->LeadTemporaryToSum();
+	//passive->LeadTemporaryToSum();
+
+	//将六维力数据输出
+	passive->ExportDataToActive();
 
 	//passive->InterpolationTraceExport();
 	//passive->PracticalTraceExport();
@@ -198,6 +201,16 @@ void PassiveControl::BeginMove(int index) {
 		}
 		for (int j = 0; j < 6; ++j) {
 			temporary_data_.sixdemsional_force[j].clear();
+		}
+	}
+
+	//检查active_control_->mean_force_and_position_是否有值，如果没有就将它初始化，如果有的话就clear后再初始化
+	if (active_control_->mean_force_and_position_.mean_positions[0].size() != 0 || active_control_->mean_force_and_position_.mean_sixdemsional_force[0].size() != 0) {
+		for (int i = 0; i < 2; ++i) {
+			active_control_->mean_force_and_position_.mean_positions[i].clear();
+		}
+		for (int j = 0; j < 6; ++j) {
+			active_control_->mean_force_and_position_.mean_sixdemsional_force[j].clear();
 		}
 	}
 
@@ -363,8 +376,12 @@ void PassiveControl::SampleStep() {
 void PassiveControl::CollectionStep() {
 	double joint_angle[2]{ 0 };
 	double sixdemional_force[6]{ 0 };
-	ControlCard::GetInstance().GetEncoderData(joint_angle);
-	DataAcquisition::GetInstance().AcquisiteSixDemensionData(sixdemional_force);
+	//ControlCard::GetInstance().GetEncoderData(joint_angle);
+	//DataAcquisition::GetInstance().AcquisiteSixDemensionData(sixdemional_force);
+
+	for (int i = 0; i < 2; ++i) joint_angle[i] = 1;
+	for (int i = 0; i < 6; ++i) sixdemional_force[i] = 2;
+
 	for (int i = 0; i < 2; i++) {
 		temporary_data_.positions[i].push_back(joint_angle[i]);
 	}
@@ -428,6 +445,17 @@ void PassiveControl::SixdemToBaseCoordinate() {
 		}
 	}
 	GravityAndAngleExport();
+}
+
+void PassiveControl::ExportDataToActive() {
+	for (int i = 0; i < temporary_data_.sixdemsional_force[0].size(); ++i) {
+		for (int p = 0; p < 6; ++p) {
+			active_control_->mean_force_and_position_.mean_sixdemsional_force[p].push_back(temporary_data_.sixdemsional_force[p][i]);
+		}
+		for (int q = 0; q < 2; ++q) {
+			active_control_->mean_force_and_position_.mean_positions[q].push_back(temporary_data_.positions[q][i]);
+		}
+	}
 }
 
 void PassiveControl::SetHWND(HWND hWnd) {
