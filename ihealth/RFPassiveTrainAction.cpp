@@ -23,11 +23,11 @@ void OnTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
 		return;
 	}
 
-	// 动作开始前播放动作的提示音
-	std::wstring mediapath = action->m_curmedia.pathFileName;
-	if (action->m_timeplay == 0 && !mediapath.empty() && _waccess(mediapath.c_str(), 0) != -1) {
-		sndPlaySound(action->m_curmedia.pathFileName.c_str(), SND_ASYNC);
-	}
+	//// 动作开始前播放动作的提示音
+	//std::wstring mediapath = action->m_curmedia.pathFileName;
+	//if (action->m_timeplay == 0 && !mediapath.empty() && _waccess(mediapath.c_str(), 0) != -1) {
+	//	sndPlaySound(action->m_curmedia.pathFileName.c_str(), SND_ASYNC);
+	//}
 
 	action->m_timeplay += 200;
 	MEDIA media = action->m_curmedia;
@@ -51,10 +51,11 @@ void OnTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTime) {
 			} else {
 				RFMainWindow::MainWindow->SetPassiveTrainProgress(0, FormatTimeValue(action->m_curmedia.train.timelen), false);
 				action->StopPlay();
-
-				//RFMainWindow::MainWindow->m_robot.PassiveMeanData(action->m_total_times);
-				//RFMainWindow::MainWindow->m_robot.PassiveToBaseCoordinate();
-				//RFMainWindow::MainWindow->m_robot.PassiveClearSixdemAndAngle();
+				sndPlaySound(NULL,SND_PURGE);
+				RFMainWindow::MainWindow->m_robot.PassiveMeanData(action->m_total_times);
+				// 传递数据到active model
+				RFMainWindow::MainWindow->m_robot.PassiveToBaseCoordinate();
+				RFMainWindow::MainWindow->m_robot.PassiveClearSixdemAndAngle();
 			}
 		}
 	}
@@ -208,7 +209,7 @@ MEDIA RFPassiveTrainAction::PopOrderMedia()
 
 	if (RFPassiveTrain::get()->m_robot_indexs.find(media.train.id) != RFPassiveTrain::get()->m_robot_indexs.end()) {
 		int index = RFPassiveTrain::get()->m_robot_indexs[media.train.id];
-		RFMainWindow::MainWindow->m_robot.PassiveStopMove(); 
+		RFMainWindow::MainWindow->m_robot.PassiveStopMove();
 		::Sleep(300U);
 		RFMainWindow::MainWindow->m_robot.PassiveStartMove(index);
 	} else {

@@ -37,14 +37,10 @@ public:
 	 void getJointVel();
 	 void Set_hWnd(HWND hWnd);
      void check();
-	 //计时将messagebox关闭,并在将计时器销毁后停止运动
-	 void StartBoxCloseTimer();
-	 void KillBoxCloseTimer();
 		
 	 void SetRobot(Robot *pRobot);
 	 bool is_error_happens_;
 	 bool is_global_detection_;
-	 //static bool test;
 
 	 static double shoulder_torque;
 	 static double elbow_torque;
@@ -70,8 +66,6 @@ private:
 	 HWND m_hWnd = NULL;
 	 Robot *m_pRobot = NULL;
 	 unsigned m_Handle;
-
-	 static UINT_PTR BoxDetectTimer;
 };
 
 #endif // BOUNDARYDETECTION_H

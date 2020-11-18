@@ -33,27 +33,25 @@ static const int kPlaneMaxY = 601;
 static const int kRagMaxX = 710;
 static const int kRagMaxY = 596;
 
-ActiveGravityCompensation ActiveControl::mean_force_and_position_ ;
-
 double ActiveControl::six_dimforce[6]{ 0 };
-double ActiveControl::six_dimension_offset_[6]{ 0 };
+//double ActiveControl::six_dimension_offset_[6]{ 0 };
 double ActiveControl::elbow_Sensitivity_ = 0;
 double ActiveControl::shoulder_Sensitivity_ = 0;
 
-extern Vector3d AxisDirection[5] {
-	Vector3d(0, 0, 0),
-	Vector3d(0, 0, 0),
-	Vector3d(0, 0, 0),
-	Vector3d(0, 0, 0),
-	Vector3d(0, 0, 0),
-};
-extern Vector3d AxisPosition[5] {
-	Vector3d(0, 0, 0),
-	Vector3d(0, 0, 0),
-	Vector3d(0, 0, 0),
-	Vector3d(0, 0, 0),
-	Vector3d(0, 0, 0),
-};
+//extern Vector3d AxisDirection[5] {
+//	Vector3d(0, 0, 0),
+//	Vector3d(0, 0, 0),
+//	Vector3d(0, 0, 0),
+//	Vector3d(0, 0, 0),
+//	Vector3d(0, 0, 0),
+//};
+//extern Vector3d AxisPosition[5] {
+//	Vector3d(0, 0, 0),
+//	Vector3d(0, 0, 0),
+//	Vector3d(0, 0, 0),
+//	Vector3d(0, 0, 0),
+//	Vector3d(0, 0, 0),
+//};
 Matrix3d RF13;
 Matrix3d sixdim_rotation;
 Matrix3d R32;
@@ -121,31 +119,31 @@ void ActiveControl::LoadParamFromFile() {
 
 	// param depend on left or right arm
 	is_left = cfg.get<int>("is_left");
-	if (is_left) {
-		AxisDirection[0] = Vector3d(1.0, 0, 0);
-		AxisDirection[1] = Vector3d(0, 0, 1.0);
-		AxisDirection[2] = Vector3d(0, -1.0, 0);
-		AxisDirection[3] = Vector3d(0, -1.0, 0);
-		AxisDirection[4] = Vector3d(-1.0, 0, 0);
+	//if (is_left) {
+	//	AxisDirection[0] = Vector3d(1.0, 0, 0);
+	//	AxisDirection[1] = Vector3d(0, 0, 1.0);
+	//	AxisDirection[2] = Vector3d(0, -1.0, 0);
+	//	AxisDirection[3] = Vector3d(0, -1.0, 0);
+	//	AxisDirection[4] = Vector3d(-1.0, 0, 0);
 
-		AxisPosition[0] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
-		AxisPosition[1] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
-		AxisPosition[2] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
-		AxisPosition[3] = Vector3d(-LowerArmLength, 0, 0);
-		AxisPosition[4] = Vector3d(-LowerArmLength, 0, 0);
-	} else {
-		AxisDirection[0] = Vector3d(-1, 0, 0);
-		AxisDirection[1] = Vector3d(0, 0, -1);
-		AxisDirection[2] = Vector3d(0, -1, 0);
-		AxisDirection[3] = Vector3d(0, -1, 0);
-		AxisDirection[4] = Vector3d(1, 0, 0);
+	//	AxisPosition[0] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
+	//	AxisPosition[1] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
+	//	AxisPosition[2] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
+	//	AxisPosition[3] = Vector3d(-LowerArmLength, 0, 0);
+	//	AxisPosition[4] = Vector3d(-LowerArmLength, 0, 0);
+	//} else {
+	//	AxisDirection[0] = Vector3d(-1, 0, 0);
+	//	AxisDirection[1] = Vector3d(0, 0, -1);
+	//	AxisDirection[2] = Vector3d(0, -1, 0);
+	//	AxisDirection[3] = Vector3d(0, -1, 0);
+	//	AxisDirection[4] = Vector3d(1, 0, 0);
 
-		AxisPosition[0] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
-		AxisPosition[1] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
-		AxisPosition[2] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
-		AxisPosition[3] = Vector3d(-LowerArmLength, 0, 0);
-		AxisPosition[4] = Vector3d(-LowerArmLength, 0, 0);
-	}
+	//	AxisPosition[0] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
+	//	AxisPosition[1] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
+	//	AxisPosition[2] = Vector3d(-UpperArmLength - LowerArmLength, 0, 0);
+	//	AxisPosition[3] = Vector3d(-LowerArmLength, 0, 0);
+	//	AxisPosition[4] = Vector3d(-LowerArmLength, 0, 0);
+	//}
 
 	// cycle_time_in_second
 	cycle_time_in_second_ = cfg.get<double>("cycle_time_in_second");
@@ -175,15 +173,70 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 	UINT start, end;
 	start = GetTickCount();
 
+
+
+	//// calculate the mass of upper arm by using the data from passive model
+	//MatrixXd massForce(3, 1);
+	//double mass_psv;
+	//double sixdimensionalForce_psv[6];
+	//double angle_psv[2];
+	//int counter = 0;
+	//for (int i = 0; i < active->mean_force_and_position_.mean_sixdemsional_force[0].size(); i++) {
+	//	if (active->mean_force_and_position_.mean_positions[0][i] > 15) {
+	//		for (int j = 0; j < 6; j++) {
+	//			sixdimensionalForce_psv[j] = active->mean_force_and_position_.mean_sixdemsional_force[j][i];
+	//		}
+	//		for (int p = 0; p < 2; p++) {
+	//			angle_psv[p] = active->mean_force_and_position_.mean_positions[p][i];
+	//		}
+	//		upperArmMassCalculation(massForce, sixdimensionalForce_psv, angle_psv, active->is_left);
+	//		mass_psv += massForce(2) / 9.81;
+	//		counter = counter + 1;
+	//	}
+	//	//AllocConsole();
+	//	//freopen("CONOUT$", "w", stdout);
+	//	////printf("s1: %lf     s2: %lf  s3: %lf  s4: %lf  s5: %lf  s6: %lf\n", sixdimensionalForce_psv[0], sixdimensionalForce_psv[1],
+	//	////	sixdimensionalForce_psv[2], sixdimensionalForce_psv[3], sixdimensionalForce_psv[4], sixdimensionalForce_psv[5]);
+	//	///*printf("f1: %lf     f2: %lf  f3: %lf \n", massForce(1,1), massForce(2,1), massForce(3,1));*/
+	//	//printf("a1: %lf     mass_psv: %lf  counter:%d \n", angle_psv[0], mass_psv, counter);
+	//	}
+	//active->mass_psv_ = mass_psv /counter;
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//printf("m: %lf \n", active->mass_psv_);
+
+
+
+
+	// 求六维力传感器的偏置
+	double sum[6]{ 0.0 };
+	double buf[6]{ 0.0 };
+	for (int i = 0; i < 10; ++i) {
+		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
+		for (int j = 0; j < 6; ++j) {
+			sum[j] += buf[j];
+		}
+	}
+	for (int i = 0; i < 6; ++i) {
+		active->six_dimension_offset_[i] = sum[i] / 10;
+	}
 	//求压力传感器的偏置
 	double two_arm_buf[2]{ 0.0 };
 	double two_arm_sum[2]{ 0.0 };
 
 	for (int i = 0; i < 10; ++i) {
+		//UINT start, end;
+		//start = GetTickCount();
 		DataAcquisition::GetInstance().AcquisiteTensionData(two_arm_buf);
+
 		for (int j = 0; j < 2; ++j) {
 			two_arm_sum[j] += two_arm_buf[j];
 		}
+		//end = GetTickCount();
+		//unsigned int time_tick = end - start;
+		//AllocConsole();
+		//freopen("CONOUT$", "w", stdout);
+		//printf("tick:%u  \n", time_tick);
 	}
 	for (int i = 0; i < 2; ++i) {
 		active->elbow_offset[i] = two_arm_sum[i] / 10;
@@ -249,6 +302,10 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 			else {
 				SwitchToThread();
 			}
+			unsigned int time_tick = end - start;
+			//AllocConsole();
+			//freopen("CONOUT$", "w", stdout);
+			//printf("tick:%u  \n", time_tick);
 		}
 		//六维力线程
 		active->Step();
@@ -267,6 +324,11 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 		double abs_elbow_backward_pull = fabs(DataAcquisition::GetInstance().ElbowBackwardPull());
 		torque[0] = DataAcquisition::GetInstance().ShoulderTorque();
 		torque[1] = DataAcquisition::GetInstance().ElbowTorque();
+
+		//AllocConsole();
+		//freopen("CONOUT$", "w", stdout);
+		//printf("m1: %lf  m2: %lf\n", torque[0], torque[1]);
+
 		joint_value << angle[0] << "          " << angle[1] << std::endl;
 		torque_value << torque[0] << "          " << torque[1] << std::endl;
 		sixdim_force_value << six_dim_force[0] << "          " << six_dim_force[1] << "          " << six_dim_force[2] << "          " << six_dim_force[3]
@@ -275,12 +337,13 @@ unsigned int __stdcall ActiveMoveThreadWithPressure(PVOID pParam) {
 		pull_force_value << abs_shoulder_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_elbow_backward_pull << endl;
 		scores << active->m_score << endl;
 	}
+
+
 	joint_value.close();
 	torque_value.close();
 	sixdim_force_value.close();
 	sum_pressure_force_value.close();
 	pull_force_value.close();
-	scores.close();
 	//active->MomentExport();
 	//active->TorqueExport();
 	//std::cout << "ActiveMoveThreadWithPressure Thread ended." << std::endl;
@@ -293,6 +356,53 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 	int paitent_id = export_data->paitent_id;
 	UINT start, end;
 	start = GetTickCount();
+
+	//// calculate the mass of upper arm by using the data from passive model
+	//MatrixXd massForce(3, 1);
+	//double mass_psv = 0;
+	//double sixdimensionalForce_psv[6];
+	//double angle_psv[2];
+	//int counter = 0;
+	//for (int i = 0; i < active->mean_force_and_position_.mean_sixdemsional_force[0].size(); i++) {
+	//	if (active->mean_force_and_position_.mean_positions[0][i] > 15) {
+	//		for (int j = 0; j < 6; j++) {
+	//			sixdimensionalForce_psv[j] = active->mean_force_and_position_.mean_sixdemsional_force[j][i];
+	//		}
+	//		for (int p = 0; p < 2; p++) {
+	//			angle_psv[p] = active->mean_force_and_position_.mean_positions[p][i];
+	//		}
+	//		upperArmMassCalculation(massForce, sixdimensionalForce_psv, angle_psv, active->is_left);
+	//		mass_psv += massForce(2) / -9.81;
+	//		counter = counter + 1;
+	//	}
+	//	AllocConsole();
+	//	freopen("CONOUT$", "w", stdout);
+	//	printf("f1: %lf     f2: %lf  f3:%lf \n", massForce(0), massForce(1), massForce(2));
+		//printf("s1: %lf     s2: %lf  s3: %lf  s4: %lf  s5: %lf  s6: %lf\n", sixdimensionalForce_psv[0], sixdimensionalForce_psv[1],
+		//	sixdimensionalForce_psv[2], sixdimensionalForce_psv[3], sixdimensionalForce_psv[4], sixdimensionalForce_psv[5]);
+
+		/*printf("f1: %lf     f2: %lf  f3: %lf \n", massForce(1,1), massForce(2,1), massForce(3,1));*/
+		//printf("a1: %lf     mass_psv: %lf  counter:%d \n", angle_psv[0], mass_psv, counter);
+	//}
+	//active->mass_psv_ = mass_psv / counter;
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//printf("m: %lf \n", active->mass_psv_);
+
+
+	// 求六维力传感器的偏置
+	double sum[6]{ 0.0 };
+	double buf[6]{ 0.0 };
+	for (int i = 0; i < 10; ++i) {
+		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
+		for (int j = 0; j < 6; ++j) {
+			sum[j] += buf[j];
+		}
+	}
+	for (int i = 0; i < 6; ++i) {
+		active->six_dimension_offset_[i] = sum[i] / 10;
+	}
+
 
 	DataAcquisition::GetInstance().StopSixDemTask();
 	DataAcquisition::GetInstance().StartSixDemTask();
@@ -353,11 +463,12 @@ unsigned int __stdcall ActiveMoveThread(PVOID pParam) {
 		pull_force_value << abs_shoulder_forward_pull << "          " << abs_shoulder_backward_pull << "          " << abs_elbow_forward_pull << "          " << abs_elbow_backward_pull << endl;
 		scores << active->m_score << endl;
 	}
+
+
 	joint_value.close();
 	torque_value.close();
 	sixdim_force_value.close();
 	pull_force_value.close();
-	scores.close();
 	//active->MomentExport();
 	//active->TorqueExport();
 	//std::cout << "ActiveMoveThread Thread ended." << std::endl;
@@ -390,7 +501,6 @@ void ActiveControl::StartMove(int id) {
 	//ControlCard::GetInstance().SetClutch(ControlCard::ClutchOn);
 	is_moving_ = true;
 	MoveInNewThread(id);
-	//detect.test = 1;
 }
 
 void ActiveControl::StopMove() {
@@ -407,25 +517,27 @@ void ActiveControl::Step() {
 	double bias[6] = { 0 };
 	double sub_bias[6] = { 0 };
 
-	//double a[10][6];
-	//double b[6];
-	//for (int i = 0; i < 10; ++i) {
+	//// 采集100组数据，求均值
+	//double readingAll[3][6];
+	//for (int i = 0; i < 3; ++i) {
 	//	DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
 	//	for (int j = 0; j < 6; ++j) {
-	//		a[i][j] = readings[j];
+	//		readingAll[i][j] = readings[j];
 	//	}
 	//}
-	//for (int i = 0; i < 10; ++i) {
-	//	for (int j = 0; j < 6; ++j) {
-	//		b[j] += a[i][j];
+	//for (int i = 0; i < 3; ++i) {
+	//	for (int j = 0; j < 5; ++j) {
+	//		readings[i] += readingAll[j][i];
 	//	}
 	//}
-	//for (int i = 0; i < 6; ++i) b[i] /= 10;
-
+	//for (int i = 0; i < 6; ++i) readings[i] /= 3;
 	DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
 
 	torque_data[0].push_back(detect.shoulder_torque);
 	torque_data[1].push_back(detect.elbow_torque);
+
+
+
 
 	// 求减去偏置之后的六维力，这里对z轴的力和力矩做了一个反向
 	for (int i = 0; i < 6; ++i) {
@@ -436,15 +548,17 @@ void ActiveControl::Step() {
 
 	Trans2Filter(sub_bias, filtedData);
 
-
+	// do not use the filter 2020-08-20-cr
 	for (int i = 0; i < 6; ++i) {
-		six_dimforce[i] = filtedData[i];
+		//six_dimforce[i] = filtedData[i];
+		six_dimforce[i] = sub_bias[i];
 	}
 
-	//Sleep(100);
+	////Sleep(100);
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
-	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", sub_bias[0], sub_bias[1], sub_bias[2], sub_bias[3], sub_bias[4], sub_bias[5]);
+	//printf("six_dimforce1:%lf    six_dimforce2:%lf    six_dimforce3:%lf \n six_dimforce4:%lf    six_dimforce5:%lf    six_dimforce6:%lf \n",
+	//	six_dimension_offset_[0], six_dimension_offset_[1], six_dimension_offset_[2], six_dimension_offset_[3], six_dimension_offset_[4], six_dimension_offset_[5]);
 
 	//Raw2Trans(sub_bias, distData);
 	//Trans2Filter(distData, filtedData);
@@ -468,10 +582,27 @@ void ActiveControl::SixDimForceStep() {
 
 	DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
 
+
+	//// 采集100组数据，求均值
+	//double readingAll[5][6];
+	//for (int i = 0; i < 5; ++i) {
+	//	DataAcquisition::GetInstance().AcquisiteSixDemensionData(readings);
+	//	for (int j = 0; j < 6; ++j) {
+	//		readingAll[i][j] = readings[j];
+	//	}
+	//}
+	//for (int i = 0; i < 6; ++i) {
+	//	for (int j = 0; j < 5; ++j) {
+	//		readings[i] += readingAll[j][i];
+	//	}
+	//}
+	//for (int i = 0; i < 6; ++i) readings[i] /= 5;
+
 	torque_data[0].push_back(detect.shoulder_torque);
 	torque_data[1].push_back(detect.elbow_torque);
 
 	// 求减去偏置之后的六维力，这里对z轴的力和力矩做了一个反向
+
 	for (int i = 0; i < 6; ++i) {
 		sub_bias[i] = readings[i] - six_dimension_offset_[i];
 	}
@@ -480,14 +611,16 @@ void ActiveControl::SixDimForceStep() {
 
 	Trans2Filter(sub_bias, filtedData);
 
-	//这里是把六维力计算成力矩，然后输出肩部的力矩值，
-    //所以压力数据force_vector的输入这里其实是没用的，但是为了后面全压力传感器方案铺路，还是选择把它留下
-	SixDimForceMomentCalculation(filtedData, vel);
+	// do not use the filter 2020-08-20-cr
+	// calculate the velocity of active joint by using modified DH convention
+	//SixDimForceMomentCalculation(filtedData, vel);
+	SixDimForceMomentCalculation(sub_bias, vel);
+
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", sub_bias[0], sub_bias[1], sub_bias[2], sub_bias[3], sub_bias[4], sub_bias[5]);
-	//printf("vel1:%lf      vel2:%lf \n", vel[0], vel[1]);
+	////printf("vel1:%lf      vel2:%lf \n", vel[0], vel[1]);
 
 	Ud_Shoul = shoulder_Sensitivity_ * vel[0];
 	Ud_Arm = shoulder_Sensitivity_ * vel[1];
@@ -529,6 +662,7 @@ void ActiveControl::TorqueStep() {
 	//}
 	torque_subdata[0] = DataAcquisition::GetInstance().torque_data[5];
 	torque_subdata[1] = DataAcquisition::GetInstance().torque_data[15];
+
 
 	ActiveTorqueToAllTorque(torque_subdata, torque_alldata);
 
@@ -578,8 +712,22 @@ void ActiveControl::PressureStep() {
 	double force_vector = 0;
 	double vel = 0;
 
-	DataAcquisition::GetInstance().AcquisiteTensionData(elbow_pressure_data);
 
+	// 取10次数据，求均值
+	//double elbow_pressure_data_All[5][2];
+	//for (int i = 0; i < 5; ++i) {
+	//	DataAcquisition::GetInstance().AcquisiteSixDemensionData(elbow_pressure_data);
+	//	for (int j = 0; j < 2; ++j) {
+	//		elbow_pressure_data_All[i][j] = elbow_pressure_data[j];
+	//	}
+	//}
+	//for (int i = 0; i < 2; ++i) {
+	//	for (int j = 0; j < 5; ++j) {
+	//		elbow_pressure_data[i] += elbow_pressure_data_All[j][i];
+	//	}
+	//}
+	//for (int i = 0; i < 2; ++i) elbow_pressure_data[i] /= 5;
+	DataAcquisition::GetInstance().AcquisiteTensionData(elbow_pressure_data);
 
 
 	//减偏置
@@ -594,20 +742,21 @@ void ActiveControl::PressureStep() {
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
-	//printf("two_arm_data1:%lf    two_arm_data2:%lf    two_arm_data3:%lf	   two_arm_data4:%lf   \n", shoulder_suboffset[0], shoulder_suboffset[1], shoulder_suboffset[2], shoulder_suboffset[3]);
+	//printf("p1:%lf    p2:%lf      ", elbow_suboffset[0], elbow_suboffset[1]);
 	//printf("two_arm_data5:%lf    two_arm_data6:%lf    two_arm_data7:%lf	   two_arm_data8:%lf   \n", elbow_suboffset[0], elbow_suboffset[1], elbow_suboffset[2], elbow_suboffset[3]);
 
 	//进行二阶巴特沃兹滤波
 	Trans2FilterForPressure(elbow_suboffset, elbow_smooth);
 
-	//将传感器数据转成力矢量
+	//将传感器数据转成力矢量 // do not use the filter 2020-08-20-cr
 	//SensorDataToForceVector(shoulder_suboffset, elbow_suboffset, force_vector);
-	force_vector = elbow_smooth[0] - elbow_smooth[1];
+	//force_vector = elbow_smooth[0] - elbow_smooth[1];
+	force_vector = elbow_suboffset[0] - elbow_suboffset[1];
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
 	//printf("force_vector:%lf  \n", force_vector);
-    //printf("angle1:%lf     angle2:%lf \n", joint_angle[0], joint_angle[1]);
+ //   printf("angle1:%lf     angle2:%lf \n", elbow_smooth[0], elbow_smooth[1]);
 
 	//这里是把六维力计算成力矩，然后输出肩部的力矩值，
 	//所以压力数据force_vector的输入这里其实是没用的，但是为了后面全压力传感器方案铺路，还是选择把它留下
@@ -658,8 +807,8 @@ void ActiveControl::PressureStep() {
 
 	//AllocConsole();
 	//freopen("CONOUT$", "w", stdout);
-	//cout << "Ud_Shoul:" << Ud_Shoul << "     " << "Ud_Arm:" << Ud_Arm << "\n" << endl;
-	//printf("shoulder_Sensitivity_:%lf  \n", shoulder_Sensitivity_);
+	////printf("force_vector:%lf  \n", force_vector);
+	//printf("Ud_Shoul:%lf     Ud_Arm:%lf \n", Ud_Shoul, Ud_Arm);
 
 	if (is_moving_) {
 		ActMove();
@@ -708,7 +857,7 @@ void ActiveControl::Raw2Trans(double RAWData[6], double DistData[6]) {
 }
 
 void ActiveControl::Trans2Filter(double TransData[6], double FiltedData[6]) {
-	double Wc = 5;
+	double Wc = 3;
 	double Ts = 0.1;
 	static int i = 0;
 	static double Last_Buffer[6] = { 0 };
@@ -826,6 +975,10 @@ void ActiveControl::MomentCalculation(double ForceVector, double& vel) {
 
 	ControlCard::GetInstance().GetEncoderData(angle);
 
+	//AllocConsole();
+ //   freopen("CONOUT$", "w", stdout);
+ //   printf("angle1:%lf   angle2:%lf \n", angle[0],angle[1]);
+
 	pos(0, 0) = angle[0];
 	pos(1, 0) = angle[1];
 	joint_angle[0] = angle[0];
@@ -838,19 +991,9 @@ void ActiveControl::MomentCalculation(double ForceVector, double& vel) {
 	six_dimensional_force_simulation(4) = six_dimforce[4];
 	six_dimensional_force_simulation(5) = six_dimforce[5];
 
+	// 在以下函数中已经使用了admittance control 和projection matrix
 	MomentBalance(six_dimensional_force_simulation, angle, moment, is_left);
 
-	//for (int i = 0; i < 5; ++i) {
-	//	v_moment(i) = moment[i];
-	//}
-
-	////关节空间投影到驱动空间
-	//AdmittanceControl(v_moment, m_vel);
-
-	//AllocConsole();
-	//freopen("CONOUT$", "w", stdout);
-	//printf("moment1:%lf      moment2:%lf      moment3:%lf      moment4:%lf      moment5:%lf  \n", moment[0], moment[1], moment[2], moment[3], moment[4]);
-	//printf("angle1:%lf     angle2:%lf \n", joint_angle[0], joint_angle[1]);
 
 	vel = moment[0];
 }
@@ -862,7 +1005,7 @@ void ActiveControl::SixDimForceMomentCalculation(double ForceVector[6], double v
 	MatrixXd pos(2, 1);
 
 	double angle[2];
-	double moment[3];
+	double moment[2];
 
 	ControlCard::GetInstance().GetEncoderData(angle);
 
@@ -878,77 +1021,73 @@ void ActiveControl::SixDimForceMomentCalculation(double ForceVector[6], double v
 	six_dimensional_force_simulation(4) = ForceVector[4];
 	six_dimensional_force_simulation(5) = ForceVector[5];
 
+
+	////with gravity compensation calculating by passive model 
+	//KinematicsControlwithGravity(six_dimensional_force_simulation, angle, moment, mass_psv_, is_left);
+
+	//compensate the gravity by seting the mass manually
 	MomentBalance(six_dimensional_force_simulation, angle, moment, is_left);
 
-	for (int i = 0; i < 3; ++i) {
+	for (int i = 0; i < 2; ++i) {
 		v_moment(i) = moment[i];
 	}
-	v_moment(3) = 1.12*v_moment(2);
-	v_moment(4) = 1.48*v_moment(2);
-
-	AdmittanceControl(v_moment, v_vel);
-
-	//AllocConsole();
-	//freopen("CONOUT$", "w", stdout);
-	//printf("v_moment1:%lf    v_moment2:%lf    v_moment3:%lf     v_moment4:%lf    v_moment5:%lf \n", v_moment(0), v_moment(1), v_moment(2), v_moment(3), v_moment(4));
-	//printf("v_vel1: %lf     v_vel2: %lf\n", v_vel(0), v_vel(1));
-
-	vel[0] = v_vel(0);
-	vel[1] = v_vel(1);
-}
-
-void ActiveControl::FiltedVolt2Vel(double FiltedData[6]) {
-	MatrixXd Vel(2, 1);
-	MatrixXd Pos(2, 1);
-	MatrixXd A(6, 6);
-	VectorXd Six_Sensor_Convert(6);
-	double angle[2];
-	ControlCard::GetInstance().GetEncoderData(angle);
-	Pos(0, 0) = angle[0];
-	Pos(1, 0) = angle[1];
-
-	//AllocConsole();
-	//freopen("CONOUT$", "w", stdout);
-	//printf("elbow angle: %lf\n", angle[1]);
-	//printf("shoulder angle: %lf\n", angle[0]);
-	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", FiltedData[3], FiltedData[4], FiltedData[5], FiltedData[0], FiltedData[1], FiltedData[2]);
 	
-	for (int i = 0; i < 6; i++)
-	{
-		Six_Sensor_Convert(i) = FiltedData[i];
-	}
-	damping_control(Six_Sensor_Convert, Pos, Vel, Force_Fc, Force_a, Force_b);
-	Ud_Shoul = Vel(0, 0);
-	Ud_Arm = Vel(1, 0);
-
-	if ((Ud_Arm > -0.5) && (Ud_Arm < 0.5))
-	{
-		Ud_Arm = 0;
-	}
-	if ((Ud_Shoul > -0.5) && (Ud_Shoul < 0.5))
-	{
-		Ud_Shoul = 0;
-	}
-	if (Ud_Arm > 5)
-	{
-		Ud_Arm = 5;
-	}
-	else if (Ud_Arm < -5)
-	{
-		Ud_Arm = -5;
-	}
-	if (Ud_Shoul > 5)
-	{
-		Ud_Shoul = 5;
-	}
-	else if (Ud_Shoul < -5)
-	{
-		Ud_Shoul = -5;
-	}
-
-	//printf("肩部速度: %lf\n", Ud_Shoul);
-	//printf("肘部速度: %lf\n", Ud_Arm);
+	vel[0] = moment[0];
+	vel[1] = moment[1];
 }
+
+//void ActiveControl::FiltedVolt2Vel(double FiltedData[6]) {
+//	MatrixXd Vel(2, 1);
+//	MatrixXd Pos(2, 1);
+//	MatrixXd A(6, 6);
+//	VectorXd Six_Sensor_Convert(6);
+//	double angle[2];
+//	ControlCard::GetInstance().GetEncoderData(angle);
+//	Pos(0, 0) = angle[0];
+//	Pos(1, 0) = angle[1];
+//
+//	//AllocConsole();
+//	//freopen("CONOUT$", "w", stdout);
+//	//printf("elbow angle: %lf\n", angle[1]);
+//	//printf("shoulder angle: %lf\n", angle[0]);
+//	//printf("fx:%lf    fy:%lf    fz:%lf \n Mx:%lf    My:%lf    Mz:%lf \n", FiltedData[3], FiltedData[4], FiltedData[5], FiltedData[0], FiltedData[1], FiltedData[2]);
+//	
+//	for (int i = 0; i < 6; i++)
+//	{
+//		Six_Sensor_Convert(i) = FiltedData[i];
+//	}
+//	damping_control(Six_Sensor_Convert, Pos, Vel, Force_Fc, Force_a, Force_b);
+//	Ud_Shoul = Vel(0, 0);
+//	Ud_Arm = Vel(1, 0);
+//
+//	if ((Ud_Arm > -0.5) && (Ud_Arm < 0.5))
+//	{
+//		Ud_Arm = 0;
+//	}
+//	if ((Ud_Shoul > -0.5) && (Ud_Shoul < 0.5))
+//	{
+//		Ud_Shoul = 0;
+//	}
+//	if (Ud_Arm > 5)
+//	{
+//		Ud_Arm = 5;
+//	}
+//	else if (Ud_Arm < -5)
+//	{
+//		Ud_Arm = -5;
+//	}
+//	if (Ud_Shoul > 5)
+//	{
+//		Ud_Shoul = 5;
+//	}
+//	else if (Ud_Shoul < -5)
+//	{
+//		Ud_Shoul = -5;
+//	}
+//
+//	//printf("肩部速度: %lf\n", Ud_Shoul);
+//	//printf("肘部速度: %lf\n", Ud_Arm);
+//}
 
 void ActiveControl::ActiveTorqueToAllTorque(double torque[2], double alltorque[5]) {
 	alltorque[0] = torque[1];
@@ -1049,6 +1188,8 @@ void ActiveControl::CalculateRagXY(double XY[2]) {
 	XY[1] = kRagMaxY - y;
 }
 
+
+// 暂时不适用（2020-07-17）
 void ActiveControl::GetSixdemPolarization() {
 	// 求六维力传感器的偏置
 	double sum[6]{ 0.0 };
@@ -1062,6 +1203,27 @@ void ActiveControl::GetSixdemPolarization() {
 	for (int i = 0; i < 6; ++i) { 
 		six_dimension_offset_[i] = sum[i] / 10;
 	}
+
+	////gravity compensation
+	//MatrixXd massForce(3, 1);
+	//double sixdimensionalForce_psv[6];
+	//double angle_psv[2];
+	//for (int i = 0; i < mean_force_and_position_.mean_sixdemsional_force[0].size(); i++) {
+	//	for (int j = 0; j < 6; j++) {
+	//		sixdimensionalForce_psv[j] = mean_force_and_position_.mean_sixdemsional_force[j][i];
+	//	}
+	//	for (int p = 0; p < 2; p++) {
+	//		angle_psv[p] = mean_force_and_position_.mean_positions[p][i];
+	//	}
+	//	upperArmMassCalculation(massForce, sixdimensionalForce_psv, angle_psv);
+	//	mass_psv_ += massForce(3, 1);
+
+	//	/*AllocConsole();
+	//	freopen("CONOUT$", "w", stdout);
+	//	printf("s: %lf     p: %lf  size:%lf \n", sixdimensionalForce_psv[0], six_dimension_offset_[0], mean_force_and_position_.mean_sixdemsional_force[0].size());*/
+
+	//}
+	//mass_psv_ = mass_psv_ / mean_force_and_position_.mean_sixdemsional_force[0].size();
 }
 
 void ActiveControl::SetDamping(float FC)

@@ -3,8 +3,10 @@
 #include "control_card.h"
 #include"boundarydetection.h"
 #include<vector>
+//#include"passive_control.h"
 #include "matrix.h"
 
+//class PassiveControl;
 struct ActiveGravityCompensation {
 	std::vector<double> mean_positions[2];
 	std::vector<double> mean_sixdemsional_force[6];
@@ -47,7 +49,7 @@ public:
 	//把力矩传感器测得的数据输出到txt文件
 	void TorqueExport();
 	boundaryDetection detect;
-	static ActiveGravityCompensation mean_force_and_position_;
+	ActiveGravityCompensation mean_force_and_position_;
 
 public:
 	bool is_exit_thread_;
@@ -55,11 +57,13 @@ public:
 	//压力传感器是否使能，注意这里并不只是单纯的将它关闭，而是切换到了纯六维力模式
 	bool m_pressure_sensor_enable;
 	double elbow_offset[2];
+	double six_dimension_offset_[6]{0.0};
+	double mass_psv_;
 	double torque_offset[2];
 	double cycle_time_in_second_;
 	int is_left;
 	std::string m_score;
-
+	//PassiveControl *passive_control_ = nullptr;
 private:
 	void MoveInNewThread(int id);
 	void ExitMoveThread();
@@ -69,7 +73,7 @@ private:
 	//将转换后的值进行滤波-二阶巴特沃斯低通滤波器
 	void Trans2Filter(double TransData[6], double FiltedData[6]);
 	void Trans2FilterForPressure(double TransData[2], double FiltedData[2]);
-	void FiltedVolt2Vel(double FiltedData[6]);
+	//void FiltedVolt2Vel(double FiltedData[6]);
 	void MomentCalculation(double ForceVector, double& vel);
 	//只用六维力情况下的力矩计算
 	void SixDimForceMomentCalculation(double ForceVector[6], double vel[2]);
@@ -86,10 +90,11 @@ private:
 	double shoulder_angle_max_;
 	double elbow_angle_max_;
 	static double six_dimforce[6];
-	static double six_dimension_offset_[6];
+	//static double six_dimension_offset_[6];
 	double joint_angle[2];
 	static double elbow_Sensitivity_;
 	static double shoulder_Sensitivity_;
+	
 };
 
 #endif // ACTIVECONTROL_H

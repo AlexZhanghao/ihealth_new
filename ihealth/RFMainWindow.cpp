@@ -2603,6 +2603,7 @@ bool RFMainWindow::OnPassiveTrain(void *pParam)
 
 	ShowPassiveTrainPage();
 	return true;
+
 }
 
 bool RFMainWindow::OnPassiveTrainPlay(void *pParam)
@@ -2610,7 +2611,12 @@ bool RFMainWindow::OnPassiveTrainPlay(void *pParam)
 	TNotifyUI *pMsg = static_cast<TNotifyUI*>(pParam);
 	if (pMsg->sType != _T("click"))
 		return true;
-
+	//何畅瞎搞开始
+	std::wstring voice_path = CPaintManagerUI::GetResourcePath() + _T("voice/doudizhu.wav");
+	if (!voice_path.empty() && _waccess(voice_path.c_str(), 0) != -1) {
+		sndPlaySound(voice_path.c_str(), SND_LOOP | SND_ASYNC);
+	}
+	//何畅瞎搞结束
 	
 	CCheckBoxUI* pPlay = static_cast<CCheckBoxUI*>(pMsg->pSender);
 	if (!pPlay->GetCheck()) {
@@ -2621,6 +2627,8 @@ bool RFMainWindow::OnPassiveTrainPlay(void *pParam)
 		}
 		m_passive_train_action.StartPlay(m_current_passivetraininfos, playbyoder);
 		m_robot.RobotReturnGlobalDetection(global_detection_off);
+
+
 	} else {
 		m_passive_train_action.StopPlay();
 		m_robot.RobotReturnGlobalDetection(global_detection_on);
@@ -2706,6 +2714,8 @@ bool RFMainWindow::OnPassiveTrainPlayByOrder(void *pParam)
 	CListUI *pList = static_cast<CListUI*>(pMenu->m_pm.FindControl(_T("musiclist")));
 	UpdateMusicList(pList);
 	return true;
+
+
 }
 
 bool RFMainWindow::OnPassiveTrainPlayByAuto(void *pParam)
@@ -3285,6 +3295,7 @@ bool RFMainWindow::OnGame4Start(void *pParam)
 		if (!voice_path.empty() && _waccess(voice_path.c_str(), 0) != -1) {
 			sndPlaySound(voice_path.c_str(), SND_LOOP | SND_ASYNC);
 		}
+
 	} else {
 		m_robot.ActiveStopMove();
 		m_robot.RobotReturnGlobalDetection(global_detection_on);
@@ -3403,8 +3414,8 @@ bool RFMainWindow::OnEvaluation1(void *pParam)
 
 	m_evalution_type = 1;
 	std::list<EvaluationData> datas;
-	//RFEvaluationData::get()->Load(1);
-	//RFEvaluationData::get()->setCurPage(0);
+	RFEvaluationData::get()->Load(1);
+	RFEvaluationData::get()->setCurPage(0);
 	UpdateEvaluationNumber(0);
 	UpdateEvaluationPage(datas);
 	ShowEvaluationHistoryPage();
@@ -3429,8 +3440,8 @@ bool RFMainWindow::OnEvaluation2(void *pParam)
 
 	m_evalution_type = 2;
 	std::list<EvaluationData> datas;
-	//RFEvaluationData::get()->Load(2);
-	//RFEvaluationData::get()->setCurPage(0);
+	RFEvaluationData::get()->Load(2);
+	RFEvaluationData::get()->setCurPage(0);
 	UpdateEvaluationNumber(0);
 	UpdateEvaluationPage(datas);
 	ShowEvaluationHistoryPage();
@@ -6900,8 +6911,6 @@ void RFMainWindow::StopGameRecord()
 	s_active_data_wl.clear();
 }
 
-
-
 std::string wstring2string(const std::wstring& ws)
 {
 	_bstr_t t = ws.c_str();
@@ -6972,7 +6981,7 @@ void OnActiveGameDetectTimer(HWND hWnd, UINT uMsg, UINT_PTR idEvent, DWORD dwTim
 		std::wstring rag_move = _T("selfmove");
 		rag_move += xy;
 		game_webkit->RunJS(rag_move);
-		std::wstring wscores= game_webkit->RunJS( _T("getScore();"));
+		std::wstring wscores = game_webkit->RunJS(_T("getScore();"));
 		std::string _scores = wstring2string(wscores);
 		RFMainWindow::MainWindow->m_robot.activeCtrl->m_score = _scores;
 	} else if (gameType == RF_GAME_NAME_CLEAN_WINDOW) {
@@ -7137,7 +7146,6 @@ void RFMainWindow::StartActiveGameDetect()
 	active_timer = 0;
 
 	s_activeGameDetectTimer = ::SetTimer(NULL, 999, 200U, (TIMERPROC)OnActiveGameDetectTimer);
-	
 
 	// 开了另外一个线程根据肩部和肘部的角度去计算飞机应该在的位置，现在我们直接停掉这个功能
 	//m_robotEvent.Start(800, 681);

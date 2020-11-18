@@ -74,6 +74,11 @@ private:
 	bool at_elbow_zero_;
 	bool at_elbow_limit_;
 	bool emergency_stop_status_;
+	bool is_first;	//是否为第一次复位
+	bool at_shoulder_mechanical_zero_;	//肩部的机械限位开关复位信号
+	bool at_shoulder_mechanical_limit_;	//肩部的机械限位开关上极限信号
+	bool at_elbow_mechanical_zero_;	//肘部的机械限位开关复位信号
+	bool at_elbow_mechanical_limit_;	//肘部的机械限位开关上极限信号
 
 	I32 total_axis_;
 	I32 start_axis_id_;

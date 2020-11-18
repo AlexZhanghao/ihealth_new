@@ -32,7 +32,7 @@ Robot::Robot() {
 	eyeModeCtl = new EyeMode(bDetect);
 	
 	bDetect->startBydetect();
-	activeCtrl->GetSixdemPolarization();
+	//activeCtrl->GetSixdemPolarization();
 	m_isActiveModeStart = false;
 	m_isEmgModeStart = false;
 	m_isPasvModeStart = false;
@@ -256,7 +256,7 @@ bool Robot::IsPassiveRecording() {
 void Robot::PassiveMeanData(int total_times) {
 	pasvMode->GetMeanData(total_times);
 }
-
+// 传递数据到active model
 void Robot::PassiveToBaseCoordinate() {
 	pasvMode->SixdemToBaseCoordinate();
 }

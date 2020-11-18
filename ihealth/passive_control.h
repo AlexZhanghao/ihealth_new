@@ -45,8 +45,6 @@ public:
 	void GetMeanData(int total_times);
 	//用于将采集到的六维力数据转换到基坐标系上面
 	void SixdemToBaseCoordinate();
-	//直接导出六维力和角度数据
-	void ExportDataToActive();
 	void GetCurrentMove(PassiveData& move);
 
 	// 开始录制动作

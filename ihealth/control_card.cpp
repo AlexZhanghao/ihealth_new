@@ -25,6 +25,11 @@ ControlCard::ControlCard()
 	at_shoulder_limit_(false),
 	at_elbow_zero_(false),
 	at_elbow_limit_(false),
+	is_first(true),
+	at_shoulder_mechanical_zero_(false),
+	at_shoulder_mechanical_limit_(false),
+	at_elbow_mechanical_zero_(false),
+	at_elbow_mechanical_limit_(false),
 	emergency_stop_status_(true) {
 	LoadParamFromFile();
 }
@@ -133,31 +138,47 @@ void ControlCard::VelMove(short AxisId, double Vel) {
 
 void ControlCard::VelocityMove(I32 axis_id, double vel) {
 	UpdateDigitInput();
-	bool limit_switchs[2];
+	bool limit_switchs[4];
 	SetLimitSwitchsByAxisId(axis_id, limit_switchs);
 	if (OutOfWorkingArea(vel, limit_switchs)) {
-		APS_stop_move(axis_id);
-	} else {
-		VelMove(axis_id, vel);
+		//APS_stop_move(axis_id);
+		APS_emg_stop(axis_id);
+	}
+	else {
+		double angle[2];
+		GetEncoderData(angle);
+		if (is_first) {
+			VelMove(axis_id, vel);
+		}
+		else if (axis_id == ShoulderAxisId && (angle[0] <= 5.0 && vel < 0)) {//离肩轴的光电开关还有2度的时候就减速停止
+			APS_stop_move(axis_id);
+		}
+		else if (axis_id == ElbowAxisId && (angle[1] <= 5.0 && vel < 0)) {//离肘轴的光电开关还有2度的时候就减速停止
+			APS_stop_move(axis_id);
+		}
+		else {
+			VelMove(axis_id, vel);
+		}
 	}
 }
 
 void ControlCard::ProtectedVelocityMove(I32 axis_id, double vel) {
 	UpdateDigitInput();
-	bool limit_switchs[2];
+	bool limit_switchs[4];
 	SetLimitSwitchsByAxisId(axis_id, limit_switchs);
 	if (OutOfWorkingArea(vel, limit_switchs)) {
-		APS_stop_move(axis_id);
+		//APS_stop_move(axis_id);
+		APS_emg_stop(axis_id);
 	}
 	else {
 		//在这里要检查肩部和肘部的角度,angle[0] = shoulder, angle[1] = elbow
 		double angle[2];
 		GetEncoderData(angle);
 
-		if (axis_id == ShoulderAxisId && ((angle[0] <= 0 && vel < 0) || (angle[0] >= kShoulderLimitInDegree && vel > 0))) {
+		if (axis_id == ShoulderAxisId && ((angle[0] <= 4.0 && vel < 0) || (angle[0] >= kShoulderLimitInDegree && vel > 0))) {
 			APS_stop_move(axis_id);
 		}
-		else if (axis_id == ElbowAxisId && ((angle[1] <= 0 && vel < 0) || (angle[1] >= kElbowLimitInDegree && vel > 0))) {
+		else if (axis_id == ElbowAxisId && ((angle[1] <= 4.0 && vel < 0) || (angle[1] >= kElbowLimitInDegree && vel > 0))) {
 			APS_stop_move(axis_id);
 		}
 		else {
@@ -167,14 +188,16 @@ void ControlCard::ProtectedVelocityMove(I32 axis_id, double vel) {
 }
 
 bool ControlCard::OutOfWorkingArea(double vel, bool *limit_switches) {
-	if ((!limit_switches[0]) && (!limit_switches[1])) {
-		return false;
-	} else if (limit_switches[0] && (vel > 0)) {
-		return false;
-	} else if (limit_switches[1] && (vel < 0)) {
-		return false;
+	if ((limit_switches[0]) && (limit_switches[1]) && (!limit_switches[2]) && (!limit_switches[3])) {	//光电信号
+		return false;//安全的
 	}
-	return true;
+	else if (((!limit_switches[0]) || limit_switches[2]) && (vel > 0)) {
+		return false;//安全的
+	}
+	else if (((!limit_switches[1]) || limit_switches[3]) && (vel < 0)) {
+		return false;//安全的
+	}
+	return true;//到达极限位置
 }
 
 /*根据轴号给limit_switchs赋值*/
@@ -182,9 +205,13 @@ void ControlCard::SetLimitSwitchsByAxisId(I32 axis_id, bool *limit_switchs) {
 	if (axis_id == ElbowAxisId) {
 		limit_switchs[0] = at_elbow_zero_;
 		limit_switchs[1] = at_elbow_limit_;
+		limit_switchs[2] = at_elbow_mechanical_zero_;
+		limit_switchs[3] = at_elbow_mechanical_limit_;
 	} else if (axis_id == ShoulderAxisId) {
 		limit_switchs[0] = at_shoulder_zero_;
 		limit_switchs[1] = at_shoulder_limit_;
+		limit_switchs[2] = at_shoulder_mechanical_zero_;
+		limit_switchs[3] = at_shoulder_mechanical_limit_;
 	}
 }
 
@@ -197,7 +224,12 @@ void ControlCard::UpdateDigitInput() {
 	for (int i = 0; i < InputChannels; i++) {
 		di_ch[i] = ((input >> i) & 1);
 	}
+	at_elbow_mechanical_limit_ = di_ch[8];	//肘部的机械限位开关上极限信号
+	at_elbow_mechanical_zero_ = di_ch[9];	//肘部的机械限位开关复位信号
+	at_shoulder_mechanical_limit_ = di_ch[10];
+	at_shoulder_mechanical_zero_ = di_ch[11];
 
+	//触发是0，正常状态是1
 	at_elbow_zero_ = di_ch[16];
 	at_elbow_limit_ = di_ch[17];
 	at_shoulder_zero_ = di_ch[18];
@@ -213,31 +245,49 @@ void ControlCard::GetEncoderData(double EncoderData[2]) {
 	ret = APS_get_position_f(ShoulderAxisId, &raw_shoulder);
 	EncoderData[0] = raw_shoulder*Unit_Convert;
 	EncoderData[1] = raw_arm*Unit_Convert;
+	//AllocConsole();
+	//freopen("CONOUT$", "w", stdout);
+	//cout << "EncoderData[0] = " << EncoderData[0] << endl;
+	//cout << "EncoderData[1] = " << EncoderData[1] << endl;
 }
 
+// 复位程序：光电开关 + 编码器 + 机械限位开关
 void ControlCard::ResetPosition() {
 	is_reset_stop = false;
 	SetMotor(MotorOn);
-	//SetClutch(ClutchOn);
 	UpdateDigitInput();
-	while (!IsReset()&& is_reset_stop==false) {
-		VelocityMove(ElbowAxisId, ResetVel);
-		VelocityMove(ShoulderAxisId, ResetVel);
+	if (is_first) {
+		while (!IsReset() && is_reset_stop == false && is_first) {//只执行第一次
+			VelocityMove(ElbowAxisId, ResetVel);
+			VelocityMove(ShoulderAxisId, ResetVel);
+		}
+		is_first = false;
+		SetMotor(MotorOff);
+		SetParamZero();	//设置编码器的零点位置，只用设置一次
 	}
-	SetMotor(MotorOff);
-	//if (IsReset()) {
-	//	SetMotor(MotorOff);
-	//}
-	//else {
-	//	APS_stop_move(ElbowAxisId);
-	//	APS_stop_move(ShoulderAxisId);
-	//}
-	//SetClutch(ClutchOff);
-	SetParamZero();
+	else {
+		while (!IsReset() && is_reset_stop == false && !is_first) {
+			VelocityMove(ElbowAxisId, ResetVel);
+			VelocityMove(ShoulderAxisId, ResetVel);
+
+			double angle[2];
+			GetEncoderData(angle);
+			if (angle[0] <= 5.0 && angle[1] <= 5.0 && ResetVel < 0) { //第二次及以上。小于5度最合适，若设为5以下，则复位到最后，时间会延长许多。ResetVel < 0可以不要 			
+				break;
+			}
+		}
+		SetMotor(MotorOff);
+		//SetParamZero();
+	}
 }
 
-bool ControlCard::IsReset() {
-	return at_elbow_zero_ && at_shoulder_zero_;
+bool ControlCard::IsReset() {	//返回0就复位,返回1就停止复位，0就是还没到光电开关的位置
+	bool both_sensor = !at_elbow_zero_ && !at_shoulder_zero_;//肩肘都碰光电开关
+	bool both_mechanical = at_shoulder_mechanical_zero_ && at_elbow_mechanical_zero_;//肩肘都碰机械开关
+	bool elbow_sensor = !at_elbow_zero_ && at_shoulder_mechanical_zero_;	//肘碰光电开关，肩碰机械开关，停止复位了,返回1.
+	bool shoulder_sensor = !at_shoulder_zero_ && at_elbow_mechanical_zero_;	//肩碰光电开关，肘碰机械开关，停止复位了,返回1。
+
+	return both_sensor || both_mechanical || elbow_sensor || shoulder_sensor;
 }
 
 void ControlCard::Set_hWnd(HWND hWnd) {
@@ -246,22 +296,22 @@ void ControlCard::Set_hWnd(HWND hWnd) {
 
 bool ControlCard::AtShoulderZero() {
 	UpdateDigitInput();
-	return at_shoulder_zero_;
+	return at_shoulder_zero_ || at_shoulder_mechanical_zero_;
 }
 
 bool ControlCard::AtShoulderLimit() {
 	UpdateDigitInput();
-	return at_shoulder_limit_;
+	return at_shoulder_limit_ || at_shoulder_mechanical_limit_;
 }
 
 bool ControlCard::AtElbowZero() {
 	UpdateDigitInput();
-	return at_elbow_zero_;
+	return at_elbow_zero_ || at_elbow_mechanical_zero_;
 }
 
 bool ControlCard::AtElbowLimit() {
 	UpdateDigitInput();
-	return at_elbow_limit_;
+	return at_elbow_limit_ || at_elbow_mechanical_limit_;
 }
 
 bool ControlCard::IsEmergencyStop() {

@@ -82,6 +82,21 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
     sixdim_force_value<<" fx(N) "<<" fy(N) "<<" fz(N) "<<" tx(N.m) "<<" ty(N.m) "<<" tz(N.m) "<<endl;
     sum_pressure_force_value<<"F>0表示肘曲"<<"F<0表示肘伸"<<endl;
 	pull_force_value << " shoulder_forward " << " shoulder_backward " << " elbow_forward " << " elbow_backward " << endl;
+
+    // 求六维力传感器的偏置
+	double sum[6]{ 0.0 };
+	double buf[6]{ 0.0 };
+	double six_dimension_offset_p[6]{0.0};
+	for (int i = 0; i < 10; ++i) {
+		DataAcquisition::GetInstance().AcquisiteSixDemensionData(buf);
+		for (int j = 0; j < 6; ++j) {
+			sum[j] += buf[j];
+		}
+	}
+	for (int i = 0; i < 6; ++i) {
+		six_dimension_offset_p[i] = sum[i] / 10;
+	}
+
 	while (TRUE) {
 		//延时 TIMER_SLEEP s
 		while (TRUE) {
@@ -110,6 +125,11 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 	double abs_elbow_backward_pull = fabs(DataAcquisition::GetInstance().ElbowBackwardPull());
 	torque[0] = DataAcquisition::GetInstance().ShoulderTorque();
 	torque[1] = DataAcquisition::GetInstance().ElbowTorque();
+
+	//将六维力的偏执减掉
+	for(int i=0;i<6;++i){
+		sixdim_force_value[i]-=six_dimension_offset_p[i];
+	}
 
 	joint_value << angle[0] << "   "<<angle[0]*0.88<<"    "<< angle[1]<<"    "<<angle[1]*1.3214<<"    "<<angle[1]*0.6607 << std::endl;
 	torque_value << torque[0] << "          " << torque[1] << std::endl;
@@ -149,10 +169,7 @@ unsigned int __stdcall RecordOrMoveThread(PVOID pParam) {
 	}
 
 	//检查六维力数组和位置数组是否有值，如果没有就将它初始化，如果有的话就clear后再初始化
-	//passive->LeadTemporaryToSum();
-
-	//将六维力数据输出
-	passive->ExportDataToActive();
+	passive->LeadTemporaryToSum();
 
 	//passive->InterpolationTraceExport();
 	//passive->PracticalTraceExport();
@@ -201,16 +218,6 @@ void PassiveControl::BeginMove(int index) {
 		}
 		for (int j = 0; j < 6; ++j) {
 			temporary_data_.sixdemsional_force[j].clear();
-		}
-	}
-
-	//检查active_control_->mean_force_and_position_是否有值，如果没有就将它初始化，如果有的话就clear后再初始化
-	if (active_control_->mean_force_and_position_.mean_positions[0].size() != 0 || active_control_->mean_force_and_position_.mean_sixdemsional_force[0].size() != 0) {
-		for (int i = 0; i < 2; ++i) {
-			active_control_->mean_force_and_position_.mean_positions[i].clear();
-		}
-		for (int j = 0; j < 6; ++j) {
-			active_control_->mean_force_and_position_.mean_sixdemsional_force[j].clear();
 		}
 	}
 
@@ -359,7 +366,8 @@ void PassiveControl::MoveStep() {
 			time);
 		sample_data_.Interpolation_Data[j].push_back(pos);
 		//APS_absolute_move(Axis[j], pos / ControlCard::Unit_Convert, 15 / ControlCard::Unit_Convert);
-		APS_ptp_v(Axis[j], option, pos / ControlCard::Unit_Convert, 15 / ControlCard::Unit_Convert, NULL);
+		//2020-09-15 解决抖动问题
+		APS_ptp_v(Axis[j], option, pos / ControlCard::Unit_Convert, 5 / ControlCard::Unit_Convert, NULL);
 	}
 
 	is_busy_ = true;
@@ -376,12 +384,8 @@ void PassiveControl::SampleStep() {
 void PassiveControl::CollectionStep() {
 	double joint_angle[2]{ 0 };
 	double sixdemional_force[6]{ 0 };
-	//ControlCard::GetInstance().GetEncoderData(joint_angle);
-	//DataAcquisition::GetInstance().AcquisiteSixDemensionData(sixdemional_force);
-
-	for (int i = 0; i < 2; ++i) joint_angle[i] = 1;
-	for (int i = 0; i < 6; ++i) sixdemional_force[i] = 2;
-
+	ControlCard::GetInstance().GetEncoderData(joint_angle);
+	DataAcquisition::GetInstance().AcquisiteSixDemensionData(sixdemional_force);
 	for (int i = 0; i < 2; i++) {
 		temporary_data_.positions[i].push_back(joint_angle[i]);
 	}
@@ -447,17 +451,6 @@ void PassiveControl::SixdemToBaseCoordinate() {
 	GravityAndAngleExport();
 }
 
-void PassiveControl::ExportDataToActive() {
-	for (int i = 0; i < temporary_data_.sixdemsional_force[0].size(); ++i) {
-		for (int p = 0; p < 6; ++p) {
-			active_control_->mean_force_and_position_.mean_sixdemsional_force[p].push_back(temporary_data_.sixdemsional_force[p][i]);
-		}
-		for (int q = 0; q < 2; ++q) {
-			active_control_->mean_force_and_position_.mean_positions[q].push_back(temporary_data_.positions[q][i]);
-		}
-	}
-}
-
 void PassiveControl::SetHWND(HWND hWnd) {
 	hWnd_ = hWnd;
 }
@@ -467,12 +460,21 @@ void PassiveControl::CruveSmoothing() {
 		max_pos[i] = GetMaxData(record_data_.target_positions[i]);
 	}
 	array_size = record_data_.target_positions[0].size();
-	if (array_size % 2 == 0) {
+	//if (array_size % 2 == 0) {
+	//	array_size++;
+	//}
+	//curve_x = array_size - 1;
+
+	// guarantee the size of array is even number 2020-07-30
+	if (array_size % 2 == 1) {
 		array_size++;
 	}
-	curve_x = array_size - 1;
+	curve_x = array_size -1;
 	DrawSincruve();
 	is_teach = false;
+
+
+
 }
 
 double PassiveControl::GetMaxData(std::vector<double> &data) {
@@ -486,17 +488,68 @@ double PassiveControl::GetMaxData(std::vector<double> &data) {
 }
 
 void PassiveControl::DrawSincruve() {
-	double curve_pi = M_PI / curve_x;
+	//double curve_pi = M_PI / curve_x;
+	//for (int j = 0; j < 2; ++j) {
+	//	for (int i = 0; i < array_size; ++i) {
+	//		record_data_.target_positions[j][i] = sin(i * curve_pi)*max_pos[j];
+	//		record_data_.target_velocitys[j][i] = cos(i * curve_pi)*max_pos[j] * curve_pi;
+	//	}
+	//	for (int i = 0; i < 2; ++i) {
+	//		record_data_.target_positions[i][array_size - 1] = 0;
+	//	}
+	//}
+
+	//draw curve by using cubic polynomial 2020-08-07
+	double ts = 1;
+	double tf = array_size * ts/2;
+	Vector4d parameterA[2];
+	Vector4d positionInfo[2];
+	Matrix4d M;
+	Vector4d timeInfo[2];
+	Vector4d timeInfoDot[2];
+	M << 1, 0, 0, 0,
+		 0, 1, 0, 0,
+		 1, tf, tf*tf, tf*tf*tf,
+		 0, 1, 2 * tf, 3 * tf*tf;
+
 	for (int j = 0; j < 2; ++j) {
-		for (int i = 0; i < array_size; ++i) {
-			record_data_.target_positions[j][i] = sin(i * curve_pi)*max_pos[j];
-			record_data_.target_velocitys[j][i] = cos(i * curve_pi)*max_pos[j] * curve_pi;
+		
+		for (int i = 0; i < (array_size / 2); ++i) {
+			positionInfo[j] << 0, 0, max_pos[j], 0;
+			timeInfo[j] << 1, i*ts, pow(i*ts, 2), pow(i*ts, 3);
+			timeInfoDot[j] << 0, 1, 2 * i*ts, 3 * pow(i*ts, 2);
+			parameterA[j] = M.inverse()*positionInfo[j];
+			record_data_.target_positions[j][i] = parameterA[j].transpose()*timeInfo[j];
+			record_data_.target_velocitys[j][i] = parameterA[j].transpose()*timeInfoDot[j];
 		}
-		for (int i = 0; i < 2; ++i) {
-			record_data_.target_positions[i][array_size - 1] = 0;
+		for (int i = (array_size / 2); i < array_size; ++i) {
+			positionInfo[j] << max_pos[j], 0, 0, 0;
+			timeInfo[j] << 1, (i- (array_size / 2))*ts, pow((i - (array_size / 2))*ts, 2), pow((i - (array_size / 2))*ts, 3);
+			timeInfoDot[j] << 0, 1, 2 * (i - (array_size / 2))*ts, 3 * pow((i - (array_size / 2))*ts, 2);
+			parameterA[j] = M.inverse()*positionInfo[j];
+			record_data_.target_positions[j][i] = parameterA[j].transpose()*timeInfo[j];
+			record_data_.target_velocitys[j][i] = parameterA[j].transpose()*timeInfoDot[j];
+			//if (record_data_.target_positions[j][i] = 0) {
+			//	for (int k = i; k < array_size; ++k) {
+			//		record_data_.target_positions[j][k] = 0;
+			//		record_data_.target_velocitys[j][k] = 0;
+			//	}
+			//}
+
 		}
+		//for (int i = 0; i < array_size ; ++i) {
+		//	if (record_data_.target_positions[j][i] < 0) {
+		//		record_data_.target_positions[j][i] = 0;
+		//		record_data_.target_velocitys[j][i] = 0;
+		//	}
+		//}
+		record_data_.target_positions[j][array_size - 2] = 0;
+		record_data_.target_positions[j][array_size - 1] = 0;
+			
 	}
+
 }
+
 
 void PassiveControl::TeachPosData() {
 	ofstream dataFile1;
